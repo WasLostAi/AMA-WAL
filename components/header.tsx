@@ -36,13 +36,17 @@ export function Header() {
         }`}
       >
         <div className="flex items-center gap-2">
-          <Image
-            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Untitled%20design%20%2839%29-Bpnali2Y0fIY10nwBriEJbyBqmXGFv.png"
-            alt="WasLost Ai Logo"
-            width={180}
-            height={40}
-            className="h-8 w-auto"
-          />
+          <div className="neumorphic-inset rounded-md p-1" style={{ width: 180, height: 40 }}>
+            {" "}
+            {/* Added wrapper div with neumorphic-inset */}
+            <Image
+              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Untitled%20design%20%2839%29-Bpnali2Y0fIY10nwBriEJbyBqmXGFv.png"
+              alt="WasLost Ai Logo"
+              width={180}
+              height={40}
+              className="w-full h-full object-contain" // Ensure image fills the new wrapper
+            />
+          </div>
         </div>
         {/* Removed CONNECT button */}
       </div>
