@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Image from "next/image"
+import { WasLostLogo } from "@/components/waslost-logo" // Import the new SVG component
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false)
@@ -36,17 +36,8 @@ export function Header() {
         }`}
       >
         <div className="flex items-center gap-2">
-          <div className="neumorphic-inset rounded-md p-1" style={{ width: 180, height: 40 }}>
-            {" "}
-            {/* Added wrapper div with neumorphic-inset */}
-            <Image
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Untitled%20design%20%2839%29-Bpnali2Y0fIY10nwBriEJbyBqmXGFv.png"
-              alt="WasLost Ai Logo"
-              width={180}
-              height={40}
-              className="w-full h-full object-contain" // Ensure image fills the new wrapper
-            />
-          </div>
+          {/* Use the new WasLostLogo component */}
+          <WasLostLogo width={180} height={40} />
         </div>
         {/* Removed CONNECT button */}
       </div>
