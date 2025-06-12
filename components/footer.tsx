@@ -36,7 +36,7 @@ export function Footer() {
         </div>
         <p className="caption text-[#e8f9ff]/70">
           2025 © Created by{" "}
-          <Link href="https://twitter.com/WasLostAI" className="text-[#afcd4f] hover:no-underline transition-colors">
+          <Link href="https://twitter.com/WasLostAI" className="text-primary hover:underline transition-colors">
             @WasLostAI
           </Link>
         </p>

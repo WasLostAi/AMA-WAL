@@ -79,35 +79,10 @@
     @apply font-inter text-sm leading-relaxed text-muted-foreground;
   }
 
-  /* Custom Scrollbar */
+  /* Hide scrollbar but maintain functionality */
   ::-webkit-scrollbar {
-    width: 8px; /* Width of the scrollbar */
-  }
-
-  ::-webkit-scrollbar-track {
-    background: theme("colors.neumorphic.dark"); /* Color of the track */
-    border-radius: 10px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: theme("colors.neumorphic.light"); /* Color of the scroll thumb */
-    border-radius: 10px;
-    border: 2px solid theme("colors.neumorphic.dark"); /* Creates a subtle border around the thumb */
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: theme("colors.muted.foreground"); /* Color when hovering over the thumb */
-  }
-
-  /* Ensure no default blue outlines or link colors */
-  a {
-    @apply text-foreground; /* Default link color */
-    text-decoration: none;
-  }
-
-  a:hover {
-    @apply text-foreground; /* Ensure hover color is not blue */
-    text-decoration: none; /* Remove default underline */
+    width: 0px;
+    background: transparent;
   }
 }
 
@@ -172,21 +147,19 @@
   }
 
   .jupiter-button-dark {
-    @apply jupiter-button text-lg font-bold uppercase;
-    color: #afcd4f !important; /* Green text for static state */
-    background-color: theme("colors.neumorphic.base") !important; /* Ensure base background is applied */
+    @apply jupiter-button text-[#e8f9ff];
+    background-color: theme("colors.neumorphic.base");
     box-shadow: 3px 3px 6px theme("colors.neumorphic.dark"), -3px -3px 6px theme("colors.neumorphic.light");
     border: none; /* Neumorphic buttons typically don't have hard borders */
   }
   .jupiter-button-dark:hover {
-    color: black !important; /* Black text on hover */
-    /* Removed background-color change on hover to keep the base color */
-    box-shadow: inset 1.5px 1.5px 3px theme("colors.neumorphic.dark"), inset -1.5px -1.5px 3px
-      theme("colors.neumorphic.light"); /* Depressed effect on hover */
-    transform: translateY(1px); /* Depressed effect on hover */
+    box-shadow: 1.5px 1.5px 3px theme("colors.neumorphic.dark"), -1.5px -1.5px 3px theme("colors.neumorphic.light");
+    transform: translateY(-1px);
   }
   .jupiter-button-dark:active {
-    /* No specific active state needed if hover handles depressed effect, or define a different one if desired */
+    box-shadow: inset 1.5px 1.5px 3px theme("colors.neumorphic.dark"), inset -1.5px -1.5px 3px
+      theme("colors.neumorphic.light");
+    transform: translateY(1px);
   }
 
   .jupiter-price {

@@ -2,17 +2,10 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { SocialPostScroller } from "@/components/social-post-scroller"
-import { useRouter } from "next/navigation" // Import useRouter
-
-type FeedType = "twitter" | "linkedin"
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  const [currentFeedType, setCurrentFeedType] = useState<FeedType>("twitter") // State to manage feed type
-  const router = useRouter() // Initialize useRouter
 
   useEffect(() => {
     setLoaded(true)
@@ -30,14 +23,6 @@ export function Header() {
     }
   }, [scrolled])
 
-  const toggleFeedType = () => {
-    setCurrentFeedType((prevType) => (prevType === "twitter" ? "linkedin" : "twitter"))
-  }
-
-  const handleConnectClick = () => {
-    router.push("/editor") // Navigate to the new editor page
-  }
-
   return (
     <header
       className={`sticky top-0 z-50 transition-all duration-300 ${
@@ -50,28 +35,16 @@ export function Header() {
           loaded ? "opacity-100" : "opacity-0"
         }`}
       >
-        {/* Logo div */}
-        <div className="neumorphic-base p-2 inline-flex items-center justify-center h-12">
+        <div className="flex items-center gap-2">
           <Image
-            src="/images/waslost-logo.png"
-            alt="WasLost AI Logo"
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo1-cKn3oZ6iAmIHfsUTkOF0Y7SFbLokfW.png"
+            alt="WasLost Ai Logo"
             width={180}
             height={40}
-            priority
             className="h-8 w-auto"
           />
         </div>
-
-        {/* Social Post Scroller */}
-        <SocialPostScroller feedType={currentFeedType} onToggleFeed={toggleFeedType} />
-
-        {/* CONNECT button */}
-        <Button
-          onClick={handleConnectClick} // Add onClick handler
-          className="jupiter-button-dark h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
-        >
-          CONNECT
-        </Button>
+        {/* Removed CONNECT button */}
       </div>
     </header>
   )

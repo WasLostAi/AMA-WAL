@@ -19,19 +19,19 @@ export function FeatureSection() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
       <FeatureCard
-        icon={<CubeIcon className="h-12 w-12 text-[#509f86] feature-icon" />}
+        icon={<CubeIcon className="h-12 w-12 text-[#00b6e7] feature-icon" />}
         title="Advanced AI & Decentralized Application Engineering"
         delay={0}
         visible={visible}
       />
       <FeatureCard
-        icon={<BookOpenIcon className="h-12 w-12 text-[#6eb075] feature-icon" />}
+        icon={<BookOpenIcon className="h-12 w-12 text-[#a4d756] feature-icon" />}
         title="Tokenization & Decentralization"
         delay={200}
         visible={visible}
       />
       <FeatureCard
-        icon={<CodeIcon className="h-12 w-12 text-[#afcd4f] feature-icon" />}
+        icon={<CodeIcon className="h-12 w-12 text-[#2ed3b7] feature-icon" />}
         title="AI-Driven Trading & Strategy Automation"
         delay={400}
         visible={visible}

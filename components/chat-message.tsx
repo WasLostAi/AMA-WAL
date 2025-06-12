@@ -12,22 +12,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user"
 
   return (
-    <div
-      className={cn(
-        "flex gap-3 p-4 rounded-lg",
-        isUser
-          ? "bg-neumorphic-light neumorphic-inset" // User message: slightly lighter, inset neumorphic
-          : "bg-neumorphic-base neumorphic-inset border border-border/40", // AI message: base color, inset neumorphic, subtle border
-      )}
-    >
-      <Avatar className={cn("h-8 w-8", isUser ? "bg-muted" : "")}>
+    <div className={cn("flex gap-3 p-4 rounded-lg", isUser ? "bg-muted/30" : "bg-black/30 border border-border/40")}>
+      <Avatar className={cn("h-8 w-8", isUser ? "bg-muted" : "bg-primary/20")}>
         <AvatarFallback>{isUser ? "U" : "AI"}</AvatarFallback>
-        {!isUser && (
-          <AvatarImage
-            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Untitled%20design%20%2838%29-3NtaTB4rUdzFs7nOwHchN5oRtxq5wQ.png"
-            alt="WasLost AI"
-          />
-        )}
+        {!isUser && <AvatarImage src="/placeholder.svg?height=32&width=32" alt="QuickNode AI" />}
       </Avatar>
       <div className="flex-1">
         <p className="text-sm text-muted-foreground mb-1">{isUser ? "You" : "WasLost AI"}</p>
