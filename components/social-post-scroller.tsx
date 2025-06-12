@@ -2,6 +2,7 @@
 
 import { TwitterIcon, LinkedInIcon } from "@/components/icons"
 import { useEffect, useState } from "react"
+import Link from "next/link" // Import Link component
 
 type SocialPostType = "twitter" | "linkedin"
 
@@ -18,7 +19,6 @@ interface SocialPostScrollerProps {
   onToggleFeed: () => void
 }
 
-// This component will now fetch from a local API route that reads the files
 export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrollerProps) {
   const [currentPostIndex, setCurrentPostIndex] = useState(0)
   const [posts, setPosts] = useState<SocialPost[]>([])
@@ -30,18 +30,18 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
       setIsLoading(true)
       setError(null)
       try {
-        // Fetch from the new local file reading API route
-        const response = await fetch(`/api/read-social-posts?type=${feedType}`)
+        // Fetch from the single AI-powered route
+        const response = await fetch(`/api/generate-social-posts?type=${feedType}`)
         if (!response.ok) {
           const errorResponse = await response.json()
-          throw new Error(errorResponse.error || `Failed to load ${feedType} posts from local files.`)
+          throw new Error(errorResponse.error || errorResponse.suggestion || `Failed to generate ${feedType} posts.`)
         }
         const data = await response.json()
         setPosts(data)
         setCurrentPostIndex(0) // Reset index when feed type changes
       } catch (err: any) {
-        console.error(`Error fetching ${feedType} posts from local files:`, err)
-        setError(err.message || "Failed to load posts from local files.")
+        console.error(`Error fetching ${feedType} posts:`, err)
+        setError(err.message || "Failed to load posts.")
         setPosts([]) // Clear posts on error
       } finally {
         setIsLoading(false)
@@ -85,6 +85,13 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
   }
 
   const currentPost = posts[currentPostIndex]
+  const userHandle = "waslostai" // Your handle for both platforms
+
+  // Construct a theoretical URL for the profile or a general feed
+  const postUrl =
+    currentPost.type === "twitter"
+      ? `https://x.com/${userHandle}` // Link to your X profile
+      : `https://www.linkedin.com/in/${userHandle}` // Link to your LinkedIn profile
 
   return (
     <div className="neumorphic-base p-2 flex items-center gap-3 flex-1 mx-4 h-12 overflow-hidden">
@@ -102,10 +109,12 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
         />
       )}
       <div className="flex-1 overflow-hidden">
-        <div className="whitespace-nowrap animate-marquee">
-          <span className="text-[#afcd4f] font-bold mr-2">{currentPost.headline}:</span>
-          <span className="text-white">{currentPost.content}</span>
-        </div>
+        <Link href={postUrl} target="_blank" rel="noopener noreferrer" className="social-post-link">
+          <div className="whitespace-nowrap animate-marquee">
+            <span className="text-[#afcd4f] font-bold mr-2">{currentPost.headline}:</span>
+            <span className="text-white">{currentPost.content}</span>
+          </div>
+        </Link>
       </div>
     </div>
   )

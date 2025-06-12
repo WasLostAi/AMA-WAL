@@ -56,7 +56,7 @@
   }
 
   h3 {
-    @apply font-syne text-2xl lg:text-3xl font-semibold leading-snug;
+    @apply font-2xl lg:text-3xl font-semibold leading-snug;
   }
 
   .subheading-large {
@@ -211,6 +211,17 @@
   .shadow-inner-neumorphic {
     box-shadow: inset 1.5px 1.5px 4px theme("colors.neumorphic.dark"), inset -1.5px -1.5px 4px
       theme("colors.neumorphic.light");
+  }
+
+  /* Social Post Link Styling */
+  .social-post-link {
+    @apply text-white; /* Default text color */
+    text-decoration: none; /* No underline by default */
+  }
+
+  .social-post-link:hover {
+    @apply text-[#afcd4f]; /* Green text on hover */
+    text-decoration: underline; /* Underline on hover */
   }
 }
 
