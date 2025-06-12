@@ -5,8 +5,8 @@ import { chatbotData } from "@/lib/chatbot-data"
 import { getBlobContent } from "@/lib/blob-actions" // Import the blob reading action
 
 export async function GET(request: Request) {
+  console.log("generate-social-posts API route invoked.") // Added for debugging
   try {
-    // <--- New outer try block to catch all errors
     const { searchParams } = new URL(request.url)
     const type = searchParams.get("type") // 'twitter' or 'linkedin'
 
@@ -123,7 +123,6 @@ export async function GET(request: Request) {
       },
     })
   } catch (error: any) {
-    // <--- Outer catch block will now catch any error in the function
     console.error(`A top-level error occurred in generate-social-posts API:`, error)
     return NextResponse.json(
       {
