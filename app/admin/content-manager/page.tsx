@@ -4,16 +4,20 @@ import type React from "react"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useActionState } from "react"
-import { saveSocialPostsMarkdown } from "./social-post-actions" // Renamed import
-import { uploadFileWithTag, getFileMetadata, deleteFile } from "./file-upload-actions" // New actions
+import { saveSocialPostsMarkdown } from "./social-post-actions"
+import { uploadFileWithTag, getFileMetadata, deleteFile } from "./file-upload-actions" // Import processFileForRAG
+import { suggestTagsFromFileContent } from "./ai-tagging-action" // New AI tagging action
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input" // Assuming you have Input
+import { Input } from "@/components/ui/input"
 import { initialProjectUpdatesMarkdown } from "@/lib/current-projects"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { useRouter } from "next/navigation"
-import { XIcon, UploadCloudIcon, FileTextIcon, ImageIcon, FileIcon, Trash2Icon } from "lucide-react" // Icons
+import { XIcon, UploadCloudIcon, FileTextIcon, ImageIcon, FileIcon, Trash2Icon, SparklesIcon } from "lucide-react" // Icons
+import pdf from "pdf-parse"
+import mammoth from "mammoth"
+import convert from "html-to-text"
 
 interface FileMetadata {
   fileName: string
@@ -43,16 +47,14 @@ export default function ContentManagerPage() {
   })
 
   // State for File Uploads
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]) // Changed to array for batch upload
   const [fileTagInput, setFileTagInput] = useState<string>("")
   const [previouslyUsedTags, setPreviouslyUsedTags] = useState<string[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<FileMetadata[]>([])
   const [isDragging, setIsDragging] = useState(false)
-  const [fileUploadState, fileUploadAction, isFileUploadPending] = useActionState(uploadFileWithTag, {
-    message: "",
-    success: false,
-  })
+  const [isFileUploadPending, setIsFileUploadPending] = useState(false) // Manual pending state for batch
   const [isFetchingFiles, setIsFetchingFiles] = useState(true)
+  const [isSuggestingTags, setIsSuggestingTags] = useState(false)
 
   useEffect(() => {
     if (!connected || !isAuthorized) {
@@ -65,17 +67,6 @@ export default function ContentManagerPage() {
       alert(socialPostState.message)
     }
   }, [socialPostState])
-
-  useEffect(() => {
-    if (fileUploadState.message) {
-      alert(fileUploadState.message)
-      if (fileUploadState.success) {
-        setSelectedFile(null)
-        setFileTagInput("")
-        fetchFileMetadata() // Refresh the list of uploaded files
-      }
-    }
-  }, [fileUploadState])
 
   const fetchFileMetadata = useCallback(async () => {
     setIsFetchingFiles(true)
@@ -98,18 +89,16 @@ export default function ContentManagerPage() {
   }, [isAuthorized, fetchFileMetadata])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0])
+    if (e.target.files) {
+      setSelectedFiles(Array.from(e.target.files))
     }
   }
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setIsDragging(false)
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0])
-      // Prompt for tag if dropped, or require it before upload
-      // For now, we'll just set the file and rely on the input field
+    if (e.dataTransfer.files) {
+      setSelectedFiles(Array.from(e.dataTransfer.files))
     }
   }
 
@@ -122,27 +111,84 @@ export default function ContentManagerPage() {
     setIsDragging(false)
   }
 
+  const handleSuggestTags = async () => {
+    if (selectedFiles.length === 0) {
+      alert("Please select a file first to suggest tags.")
+      return
+    }
+    setIsSuggestingTags(true)
+    try {
+      // For simplicity, we'll suggest tags based on the first selected file's content
+      // In a real app, you might process a summary of all files or allow per-file tagging.
+      const file = selectedFiles[0]
+      const fileBuffer = Buffer.from(await file.arrayBuffer())
+      const textContent = await extractTextFromFile(fileBuffer, file.type) // Re-use extractTextFromFile from actions
+      if (textContent) {
+        const suggested = await suggestTagsFromFileContent(textContent)
+        setFileTagInput(suggested.join(", "))
+      } else {
+        alert("Could not extract text from the selected file to suggest tags.")
+      }
+    } catch (error) {
+      console.error("Error suggesting tags:", error)
+      alert("Failed to suggest tags. Please try again.")
+    } finally {
+      setIsSuggestingTags(false)
+    }
+  }
+
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedFile) {
-      alert("Please select a file to upload.")
+    if (selectedFiles.length === 0) {
+      alert("Please select files to upload.")
       return
     }
     if (!fileTagInput.trim()) {
-      alert("Please provide at least one tag for the file.")
+      alert("Please provide at least one tag for the files.")
       return
     }
 
-    const formData = new FormData()
-    formData.append("file", selectedFile)
-    formData.append("tags", fileTagInput.trim())
+    setIsFileUploadPending(true)
+    let allSuccess = true
+    const tags = fileTagInput
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
 
-    // Call the server action via useActionState's action function
-    fileUploadAction(formData)
+    for (const file of selectedFiles) {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("tags", tags.join(",")) // Apply same tags to all files in batch
+
+      try {
+        // Call the server action directly, not via useActionState for batch processing
+        const result = await uploadFileWithTag(null, formData) // Pass null for prevState
+        if (!result.success) {
+          allSuccess = false
+          alert(`Failed to upload ${file.name}: ${result.message}`)
+        } else {
+          console.log(`Successfully uploaded and processed ${file.name}`)
+        }
+      } catch (error) {
+        allSuccess = false
+        console.error(`Error uploading ${file.name}:`, error)
+        alert(`An error occurred while uploading ${file.name}.`)
+      }
+    }
+
+    setIsFileUploadPending(false)
+    if (allSuccess) {
+      alert("All selected files uploaded and processed successfully!")
+      setSelectedFiles([])
+      setFileTagInput("")
+      fetchFileMetadata() // Refresh the list of uploaded files
+    } else {
+      alert("Some files failed to upload. Check console for details.")
+    }
   }
 
   const handleDeleteFile = async (filePath: string) => {
-    if (confirm(`Are you sure you want to delete ${filePath}?`)) {
+    if (confirm(`Are you sure you want to delete ${filePath}? This will also remove its AI memory.`)) {
       try {
         const result = await deleteFile(filePath)
         if (result.success) {
@@ -162,10 +208,38 @@ export default function ContentManagerPage() {
     if (contentType.startsWith("image/")) {
       return <ImageIcon className="h-6 w-6 text-[#afcd4f]" />
     }
-    if (contentType.includes("pdf") || contentType.includes("document") || contentType.includes("text")) {
-      return <FileTextIcon className="h-6 w-6 text-[#afcd4f]" />
+    if (contentType.includes("pdf")) {
+      return <FileTextIcon className="h-6 w-6 text-red-500" /> // PDF specific icon color
     }
-    return <FileIcon className="h-6 w-6 text-[#afcd4f]" />
+    if (contentType.includes("wordprocessingml.document")) {
+      return <FileTextIcon className="h-6 w-6 text-blue-500" /> // DOCX specific icon color
+    }
+    if (
+      contentType.includes("text/plain") ||
+      contentType.includes("text/markdown") ||
+      contentType.includes("text/html")
+    ) {
+      return <FileTextIcon className="h-6 w-6 text-green-500" /> // Text/Markdown/HTML specific icon color
+    }
+    return <FileIcon className="h-6 w-6 text-muted-foreground" />
+  }
+
+  // Helper function to extract text (copied from file-upload-actions for client-side preview/tagging)
+  async function extractTextFromFile(fileBuffer: Buffer, contentType: string): Promise<string> {
+    if (contentType.includes("text/plain") || contentType.includes("text/markdown")) {
+      return fileBuffer.toString("utf-8")
+    } else if (contentType.includes("application/pdf")) {
+      const data = await pdf(fileBuffer)
+      return data.text
+    } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+      const result = await mammoth.extractRawText({ arrayBuffer: fileBuffer.buffer })
+      return result.value
+    } else if (contentType.includes("text/html")) {
+      return convert(fileBuffer.toString("utf-8"), {
+        wordwrap: 130,
+      })
+    }
+    return ""
   }
 
   // Only render the editor if authorized
@@ -229,33 +303,49 @@ export default function ContentManagerPage() {
               Upload images, planning documents, or other files for the AI agent to reference. Tag them for easy
               retrieval.
             </p>
-            <form onSubmit={handleFileUpload} className="space-y-4">
-              <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  isDragging ? "border-[#afcd4f] bg-neumorphic-light" : "border-muted-foreground/30 bg-neumorphic-base"
-                }`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => document.getElementById("file-input")?.click()}
-              >
-                <UploadCloudIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  {selectedFile ? selectedFile.name : "Drag & drop files here, or click to select"}
-                </p>
-                <input
-                  id="file-input"
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileChange}
-                  disabled={isFileUploadPending}
-                />
-              </div>
+            <div
+              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                isDragging ? "border-[#afcd4f] bg-neumorphic-light" : "border-muted-foreground/30 bg-neumorphic-base"
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById("file-input")?.click()}
+            >
+              <UploadCloudIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                {selectedFiles.length > 0
+                  ? `${selectedFiles.length} file(s) selected`
+                  : "Drag & drop files here, or click to select"}
+              </p>
+              <input
+                id="file-input"
+                type="file"
+                multiple // Allow multiple file selection
+                className="hidden"
+                onChange={handleFileChange}
+                disabled={isFileUploadPending}
+              />
+            </div>
 
-              <div className="space-y-2">
-                <label htmlFor="file-tag" className="block text-sm font-medium text-muted-foreground">
-                  Tags (comma-separated)
-                </label>
+            {selectedFiles.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Selected Files:</p>
+                <ul className="list-disc list-inside text-sm text-white">
+                  {selectedFiles.map((file, index) => (
+                    <li key={index}>
+                      {file.name} ({Math.round(file.size / 1024)} KB)
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="space-y-2 mt-4">
+              <label htmlFor="file-tag" className="block text-sm font-medium text-muted-foreground">
+                Tags (comma-separated)
+              </label>
+              <div className="flex gap-2">
                 <Input
                   id="file-tag"
                   type="text"
@@ -263,24 +353,33 @@ export default function ContentManagerPage() {
                   onChange={(e) => setFileTagInput(e.target.value)}
                   placeholder="e.g., project-alpha, roadmap, image, Q1-planning"
                   list="previously-used-tags"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                  className="flex-1 bg-neumorphic-base shadow-inner-neumorphic text-white"
                   disabled={isFileUploadPending}
                 />
-                <datalist id="previously-used-tags">
-                  {previouslyUsedTags.map((tag) => (
-                    <option key={tag} value={tag} />
-                  ))}
-                </datalist>
+                <Button
+                  type="button"
+                  onClick={handleSuggestTags}
+                  className="jupiter-button-dark h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base flex items-center gap-2"
+                  disabled={isSuggestingTags || selectedFiles.length === 0 || isFileUploadPending}
+                >
+                  {isSuggestingTags ? "Suggesting..." : <SparklesIcon className="h-4 w-4" />}
+                </Button>
               </div>
+              <datalist id="previously-used-tags">
+                {previouslyUsedTags.map((tag) => (
+                  <option key={tag} value={tag} />
+                ))}
+              </datalist>
+            </div>
 
-              <Button
-                type="submit"
-                className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
-                disabled={isFileUploadPending || !selectedFile || !fileTagInput.trim()}
-              >
-                {isFileUploadPending ? "Uploading..." : "UPLOAD FILE"}
-              </Button>
-            </form>
+            <Button
+              type="submit"
+              onClick={handleFileUpload} // Use onClick for manual form submission
+              className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base mt-4"
+              disabled={isFileUploadPending || selectedFiles.length === 0 || !fileTagInput.trim()}
+            >
+              {isFileUploadPending ? "Uploading..." : "UPLOAD FILE(S)"}
+            </Button>
 
             {/* Uploaded Files List */}
             <h3 className="text-xl font-bold text-[#afcd4f] mt-8 mb-4 text-center">Uploaded Files</h3>
