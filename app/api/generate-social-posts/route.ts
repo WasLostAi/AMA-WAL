@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
+import { openai } from "@ai-sdk/openai" // Keep import at top, but instantiate model later
 import { chatbotData } from "@/lib/chatbot-data"
-import { getBlobContent } from "@/lib/blob-actions" // Import the blob reading action
+import { getBlobContent } from "@/lib/blob-actions"
 
 export async function GET(request: Request) {
   console.log("generate-social-posts API route invoked.") // Added for debugging
@@ -25,6 +25,9 @@ export async function GET(request: Request) {
         { status: 500 },
       )
     }
+
+    // Instantiate the OpenAI model ONLY after confirming API key is present
+    const model = openai("gpt-4o")
 
     // Fetch dynamic content from Vercel Blob
     let dynamicContent = ""
@@ -74,7 +77,7 @@ export async function GET(request: Request) {
     }
 
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: model, // Use the instantiated model
       system: systemPrompt,
       prompt: prompt,
     })
