@@ -41,16 +41,51 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch agent profile data from Supabase
-    const { data: profileData, error: profileError } = await supabaseAdmin
-      .from("agent_profile")
-      .select("profile_data")
-      .single()
+    let chatbotData: any = {}
+    try {
+      // Use .maybeSingle() to handle cases where no row is found without throwing an error
+      const { data: profileData, error: profileError } = await supabaseAdmin
+        .from("agent_profile")
+        .select("profile_data")
+        .maybeSingle() // Changed from .single()
 
-    if (profileError || !profileData) {
-      console.error("Error fetching agent profile from Supabase:", profileError)
-      return NextResponse.json({ error: "Failed to load agent profile data." }, { status: 500 })
+      if (profileError) {
+        console.error("Error fetching agent profile from Supabase:", profileError)
+        // If the table doesn't exist, return a specific JSON error
+        if (profileError.code === "42P01") {
+          // PostgreSQL error code for "undefined_table"
+          return NextResponse.json(
+            {
+              error: "Database table 'agent_profile' not found. Please run the SQL seed script.",
+              details: profileError.message,
+            },
+            { status: 500 },
+          )
+        }
+        // For other Supabase errors, log and proceed with fallback data
+        console.warn("Using fallback chatbot data due to Supabase fetch error:", profileError.message)
+      }
+
+      if (!profileData) {
+        console.warn("No agent profile data found in Supabase. Using fallback data.")
+      }
+
+      // Use fetched data or fallback
+      chatbotData = profileData?.profile_data || {
+        personal: { name: "Michael P. Robinson", nickname: "Mike", mission: "empower through AI" },
+        professional: { currentRole: "AI Developer", skills: ["AI", "Web3"], keyAchievements: [] },
+        company: { name: "WasLost LLC", product: "WasLost.Ai", description: "AI agent ecosystem", projects: [] },
+      }
+    } catch (dbFetchError) {
+      console.error("Unexpected error during Supabase profile fetch:", dbFetchError)
+      // Ensure chatbotData is initialized even on unexpected errors
+      chatbotData = {
+        personal: { name: "Michael P. Robinson", nickname: "Mike", mission: "empower through AI" },
+        professional: { currentRole: "AI Developer", skills: ["AI", "Web3"], keyAchievements: [] },
+        company: { name: "WasLost LLC", product: "WasLost.Ai", description: "AI agent ecosystem", projects: [] },
+      }
+      console.warn("Using fallback chatbot data due to unexpected error during Supabase fetch.")
     }
-    const chatbotData = profileData.profile_data // Assuming profile_data is the JSONB column
 
     // Fetch training Q&A data from Supabase
     const { data: trainingData, error: trainingError } = await supabaseAdmin

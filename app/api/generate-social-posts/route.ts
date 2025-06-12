@@ -27,10 +27,11 @@ export async function GET(request: Request) {
     // --- Fetch agent profile data from Supabase ---
     let chatbotData: any = {}
     try {
+      // Use .maybeSingle() to handle cases where no row is found without throwing an error
       const { data: profileData, error: profileError } = await supabaseAdmin
         .from("agent_profile")
         .select("profile_data")
-        .single()
+        .maybeSingle() // Changed from .single()
 
       if (profileError) {
         console.error("Error fetching agent profile from Supabase:", profileError)
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
             { status: 500 },
           )
         }
-        // For other Supabase errors, use fallback data but log the error
+        // For other Supabase errors, log and proceed with fallback data
         console.warn("Using fallback chatbot data due to Supabase fetch error:", profileError.message)
       }
 
