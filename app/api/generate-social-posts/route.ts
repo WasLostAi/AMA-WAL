@@ -9,6 +9,7 @@ export async function GET(request: Request) {
   const type = searchParams.get("type") // 'twitter' or 'linkedin'
 
   if (!type || (type !== "twitter" && type !== "linkedin")) {
+    console.error("Error: Invalid or missing 'type' parameter in generate-social-posts API.")
     return NextResponse.json({ error: "Invalid or missing 'type' parameter." }, { status: 400 })
   }
 
@@ -120,10 +121,17 @@ export async function GET(request: Request) {
         "Cache-Control": "s-maxage=86400, stale-while-revalidate", // 24 hours
       },
     })
-  } catch (error) {
+  } catch (error: any) {
+    // Catch any type of error
     console.error(`Error generating ${type} posts with AI:`, error)
+    // Ensure the error response is always valid JSON
     return NextResponse.json(
-      { error: `Internal server error while generating ${type} posts with AI.` },
+      {
+        error: `Internal server error while generating ${type} posts with AI.`,
+        details: error.message || "An unknown error occurred.",
+        suggestion:
+          "Please check server logs for more details, and ensure your OPENAI_API_KEY is valid and has sufficient quota.",
+      },
       { status: 500 },
     )
   }
