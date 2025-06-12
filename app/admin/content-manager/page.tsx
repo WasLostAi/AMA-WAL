@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation"
 import { XIcon, UploadCloudIcon, FileTextIcon, ImageIcon, FileIcon, Trash2Icon, SparklesIcon } from "lucide-react" // Icons
 import pdf from "pdf-parse"
 import mammoth from "mammoth"
-import convert from "html-to-text"
+import { convert } from "html-to-text"
 
 interface FileMetadata {
   fileName: string
