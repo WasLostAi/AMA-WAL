@@ -29,22 +29,13 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
       setIsLoading(true)
       setError(null)
       try {
-        let data: SocialPost[] = []
-        if (feedType === "twitter") {
-          const response = await fetch("/api/x-posts") // Call the X API route (AI-generated)
-          if (!response.ok) {
-            const errorResponse = await response.json()
-            throw new Error(errorResponse.error || errorResponse.suggestion || "Failed to fetch Twitter posts")
-          }
-          data = await response.json()
-        } else if (feedType === "linkedin") {
-          const response = await fetch("/api/linkedin-posts") // Call the new LinkedIn API route (AI-generated)
-          if (!response.ok) {
-            const errorResponse = await response.json()
-            throw new Error(errorResponse.error || errorResponse.suggestion || "Failed to fetch LinkedIn posts")
-          }
-          data = await response.json()
+        // Fetch from the single AI-powered route
+        const response = await fetch(`/api/generate-social-posts?type=${feedType}`)
+        if (!response.ok) {
+          const errorResponse = await response.json()
+          throw new Error(errorResponse.error || errorResponse.suggestion || `Failed to generate ${feedType} posts.`)
         }
+        const data = await response.json()
         setPosts(data)
         setCurrentPostIndex(0) // Reset index when feed type changes
       } catch (err: any) {
