@@ -18,6 +18,7 @@ interface SocialPostScrollerProps {
   onToggleFeed: () => void
 }
 
+// This component will now fetch from a local API route that reads the files
 export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrollerProps) {
   const [currentPostIndex, setCurrentPostIndex] = useState(0)
   const [posts, setPosts] = useState<SocialPost[]>([])
@@ -29,18 +30,18 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
       setIsLoading(true)
       setError(null)
       try {
-        // Fetch from the single AI-powered route
-        const response = await fetch(`/api/generate-social-posts?type=${feedType}`)
+        // Fetch from the new local file reading API route
+        const response = await fetch(`/api/read-social-posts?type=${feedType}`)
         if (!response.ok) {
           const errorResponse = await response.json()
-          throw new Error(errorResponse.error || errorResponse.suggestion || `Failed to generate ${feedType} posts.`)
+          throw new Error(errorResponse.error || `Failed to load ${feedType} posts from local files.`)
         }
         const data = await response.json()
         setPosts(data)
         setCurrentPostIndex(0) // Reset index when feed type changes
       } catch (err: any) {
-        console.error(`Error fetching ${feedType} posts:`, err)
-        setError(err.message || "Failed to load posts.")
+        console.error(`Error fetching ${feedType} posts from local files:`, err)
+        setError(err.message || "Failed to load posts from local files.")
         setPosts([]) // Clear posts on error
       } finally {
         setIsLoading(false)
