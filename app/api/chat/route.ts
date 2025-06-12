@@ -2,8 +2,6 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
-import { chatbotData } from "@/lib/chatbot-data"
-import { trainingData } from "@/lib/training-data"
 import { supabaseAdmin } from "@/lib/supabase" // Import Supabase client
 
 export async function POST(request: NextRequest) {
@@ -42,7 +40,28 @@ export async function POST(request: NextRequest) {
       // Continue without RAG context if there's an error
     }
 
-    // Combine chatbot instructions, training data, and retrieved context for prompt
+    // Fetch agent profile data from Supabase
+    const { data: profileData, error: profileError } = await supabaseAdmin
+      .from("agent_profile")
+      .select("profile_data")
+      .single()
+
+    if (profileError || !profileData) {
+      console.error("Error fetching agent profile from Supabase:", profileError)
+      return NextResponse.json({ error: "Failed to load agent profile data." }, { status: 500 })
+    }
+    const chatbotData = profileData.profile_data // Assuming profile_data is the JSONB column
+
+    // Fetch training Q&A data from Supabase
+    const { data: trainingData, error: trainingError } = await supabaseAdmin
+      .from("agent_training_qa")
+      .select("question, answer")
+
+    if (trainingError) {
+      console.error("Error fetching training data from Supabase:", trainingError)
+      // Continue without training data if there's an error, or return an error if critical
+    }
+
     const systemPrompt = `You are Michael Robinson's AI representative for WasLost.Ai.
     Your role is to respond as Michael (or Mike) would. Assure the user that talking to YOU is the same as talking to Michael.
     Answer questions BRIEFLY, as this is a TEST/MVP.
@@ -62,20 +81,20 @@ export async function POST(request: NextRequest) {
     --- Michael's Professional Information ---
     Current Role: ${chatbotData.professional.currentRole}
     Responsibilities: ${chatbotData.professional.responsibilities.join(", ")}
-    Previous Experience: ${chatbotData.professional.previousExperience.map((exp) => `- ${exp}`).join("\n")}
+    Previous Experience: ${chatbotData.professional.previousExperience.map((exp: string) => `- ${exp}`).join("\n")}
     Skills: ${chatbotData.professional.skills.join("; ")}
-    Key Achievements: ${chatbotData.professional.keyAchievements.map((ach) => `- ${ach}`).join("\n")}
+    Key Achievements: ${chatbotData.professional.keyAchievements.map((ach: string) => `- ${ach}`).join("\n")}
 
     --- WasLost LLC & WasLost.Ai Company Information ---
     Company Name: ${chatbotData.company.name}
     Product: ${chatbotData.company.product}
     Description: ${chatbotData.company.description}
     Projects:
-    ${chatbotData.company.projects.map((project) => `  - ${project.name}: ${project.details.join(", ")}`).join("\n")}
+    ${chatbotData.company.projects.map((project: { name: string; details: string[] }) => `  - ${project.name}: ${project.details.join(", ")}`).join("\n")}
     Tokenomics Status: ${chatbotData.company.tokenomics}
 
     --- Additional Training Data (Q&A pairs for specific queries) ---
-    ${trainingData.map((data) => `Q: ${data.question}\nA: ${data.answer}`).join("\n\n")}
+    ${trainingData ? trainingData.map((data: { question: string; answer: string }) => `Q: ${data.question}\nA: ${data.answer}`).join("\n\n") : "No additional training data available."}
 
     ${
       retrievedContext
@@ -83,7 +102,7 @@ export async function POST(request: NextRequest) {
     ${retrievedContext}`
         : ""
     }
-    `
+  `
 
     // Format history for the AI SDK
     const formattedHistory = history.map((msg: { role: string; content: string }) => ({
