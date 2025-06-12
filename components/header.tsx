@@ -50,7 +50,7 @@ export function Header() {
   const handleConnectClick = () => {
     if (isAuthorized) {
       // If authorized, navigate to the editor
-      router.push("/admin/social-editor")
+      router.push("/admin/content-manager")
     } else if (connected) {
       // If connected but not authorized, disconnect
       disconnect()
