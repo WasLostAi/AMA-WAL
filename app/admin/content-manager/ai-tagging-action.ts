@@ -20,9 +20,9 @@ async function extractTextFromFile(fileBuffer: Buffer, contentType: string): Pro
       wordwrap: 130,
     })
   }
-  // Add more parsers for other document types as needed
+  // For images or other unsupported types, return empty string
   console.warn(`Unsupported file type for text extraction: ${contentType}`)
-  return "" // Return empty string for unsupported types
+  return ""
 }
 
 export async function suggestTagsFromFile(
@@ -53,10 +53,11 @@ export async function suggestTagsFromFile(
     // Extract text from file
     const fileContent = await extractTextFromFile(fileBuffer, file.type)
     if (!fileContent) {
+      // If no text could be extracted (e.g., it's an image)
       return {
         tags: [],
         success: false,
-        message: `Could not extract text from file type: ${file.type}`,
+        message: `Cannot extract text from file type "${file.type}" to suggest tags.`,
       }
     }
 

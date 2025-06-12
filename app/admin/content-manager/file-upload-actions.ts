@@ -93,10 +93,9 @@ async function extractTextFromFile(fileBuffer: Buffer, contentType: string): Pro
       wordwrap: 130,
     })
   }
-  // Add more parsers for other document types as needed (e.g., .xlsx, .pptx)
-  // For images, you'd typically use an OCR service here.
+  // For images or other unsupported types, return empty string
   console.warn(`Unsupported file type for text extraction: ${contentType}`)
-  return "" // Return empty string for unsupported types
+  return ""
 }
 
 export async function processFileForRAG(filePath: string, tags: string[], contentType: string, fileBuffer: Buffer) {
@@ -108,8 +107,14 @@ export async function processFileForRAG(filePath: string, tags: string[], conten
   try {
     // 1. Extract text based on content type
     const fullText = await extractTextFromFile(fileBuffer, contentType)
+
     if (!fullText) {
-      return { message: `No extractable text found for file type: ${contentType}`, success: false }
+      // If no text could be extracted (e.g., it's an image), skip RAG processing
+      console.log(`Skipping RAG processing for ${filePath}: No extractable text found for file type: ${contentType}`)
+      return {
+        message: `File uploaded, but RAG processing skipped for file type: ${contentType}.`,
+        success: true, // Still consider the upload successful for the file itself
+      }
     }
 
     // 2. Chunk the text
@@ -199,11 +204,26 @@ export async function uploadFileWithTag(prevState: any, formData: FormData) {
     await updateMetadataBlob(currentMetadata)
 
     // Trigger RAG processing for the uploaded file
-    await processFileForRAG(blob.pathname, newFileEntry.tags, newFileEntry.contentType, fileBuffer)
+    // Capture the result to provide specific feedback
+    const ragProcessResult = await processFileForRAG(
+      blob.pathname,
+      newFileEntry.tags,
+      newFileEntry.contentType,
+      fileBuffer,
+    )
 
     revalidatePath("/admin/content-manager") // Revalidate the page to show new file
     console.log("File uploaded and metadata updated:", blob.url)
-    return { message: `File "${file.name}" uploaded successfully!`, success: true }
+
+    // Combine messages for comprehensive feedback
+    if (ragProcessResult.success) {
+      return { message: `File "${file.name}" uploaded. ${ragProcessResult.message}`, success: true }
+    } else {
+      return {
+        message: `File "${file.name}" uploaded, but RAG processing failed: ${ragProcessResult.message}`,
+        success: false,
+      }
+    }
   } catch (error) {
     console.error("Error uploading file to Vercel Blob:", error)
     return {
