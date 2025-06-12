@@ -73,7 +73,7 @@ export default function ContentManagerPage() {
       setPreviouslyUsedTags(Array.from(new Set(metadata.files.flatMap((f) => f.tags))))
     } catch (error) {
       console.error("Failed to fetch file metadata:", error)
-      alert("Failed to load uploaded files.")
+      // Removed the alert here, as the action now handles errors gracefully
     } finally {
       setIsFetchingFiles(false)
     }

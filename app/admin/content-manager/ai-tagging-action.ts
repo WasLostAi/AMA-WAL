@@ -1,7 +1,6 @@
 "use server"
 
 import { openai } from "@ai-sdk/openai"
-// Removed pdf-parse and mammoth imports due to fs.readFileSync error
 import { convert } from "html-to-text"
 
 // Helper function to extract text from file (server-side only)

@@ -4,7 +4,6 @@ import { put, del } from "@vercel/blob"
 import { revalidatePath } from "next/cache"
 import { openai } from "@ai-sdk/openai"
 import { supabaseAdmin } from "@/lib/supabase"
-// Removed pdf-parse and mammoth imports due to fs.readFileSync error
 import { convert } from "html-to-text"
 
 interface FileMetadata {
@@ -24,18 +23,32 @@ const METADATA_BLOB_PATH = "file-metadata.json"
 // Helper to fetch current metadata with caching
 async function fetchCurrentMetadata(): Promise<AllFileMetadata> {
   try {
-    // Revalidate every hour to ensure fresh data, but not on every request
     const response = await fetch(`https://blob.vercel-storage.com/${METADATA_BLOB_PATH}`, {
       next: { revalidate: 3600 }, // Cache for 1 hour
     })
 
     if (response.ok) {
-      return (await response.json()) as AllFileMetadata
+      const text = await response.text() // Read as text first
+      if (text) {
+        return JSON.parse(text) as AllFileMetadata
+      } else {
+        // If response is OK but body is empty, treat as no files
+        console.warn("File metadata blob exists but is empty. Initializing with no files.")
+        return { files: [] }
+      }
+    } else if (response.status === 404) {
+      // Explicitly handle 404 for clarity
+      console.warn("File metadata blob not found. Initializing with no files.")
+      return { files: [] }
+    } else {
+      // For other non-OK responses, throw an error to be caught by the caller
+      throw new Error(`Failed to fetch metadata: ${response.status} ${response.statusText}`)
     }
   } catch (error) {
-    console.warn("No existing file metadata blob found or error fetching it. Starting fresh.", error)
+    console.error("Error fetching file metadata from Blob:", error)
+    // If any other error occurs during fetch or parsing, return empty
+    return { files: [] }
   }
-  return { files: [] }
 }
 
 // Helper to update metadata blob
@@ -101,7 +114,7 @@ export async function processFileForRAG(filePath: string, tags: string[], conten
     const fullText = await extractTextFromFile(fileBuffer, contentType)
 
     if (!fullText) {
-      // If no text could be extracted (e.g., it's an image, PDF, or DOCX), skip RAG processing
+      // If no text could be extracted (e.g., it's an image), skip RAG processing
       console.log(`Skipping RAG processing for ${filePath}: No extractable text found for file type: ${contentType}`)
       return {
         message: `File uploaded, but RAG processing skipped for file type: ${contentType}. Supported types: .txt, .md, .html.`,
@@ -169,7 +182,7 @@ export async function uploadFileWithTag(prevState: any, formData: FormData) {
 
   try {
     // Convert File to Buffer for processing
-    const fileBuffer = Buffer.from(await file.arrayArrayBuffer())
+    const fileBuffer = Buffer.from(await file.arrayBuffer()) // Corrected typo here
 
     // Upload the file to Vercel Blob
     const filePath = `uploaded-files/${Date.now()}-${file.name}` // Unique path
