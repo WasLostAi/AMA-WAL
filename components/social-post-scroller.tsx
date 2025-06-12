@@ -31,10 +31,23 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
       try {
         // Fetch from the single AI-powered route
         const response = await fetch(`/api/generate-social-posts?type=${feedType}`)
+
+        // Check if the response is OK and if it's JSON
         if (!response.ok) {
-          const errorResponse = await response.json()
-          throw new Error(errorResponse.error || errorResponse.suggestion || `Failed to generate ${feedType} posts.`)
+          const contentType = response.headers.get("content-type")
+          if (contentType && contentType.includes("application/json")) {
+            const errorResponse = await response.json()
+            throw new Error(errorResponse.error || errorResponse.suggestion || `Failed to generate ${feedType} posts.`)
+          } else {
+            // If not JSON, read as text and provide a generic error
+            const errorText = await response.text()
+            console.error("Non-JSON error response from API:", errorText)
+            throw new Error(
+              `Server returned an unexpected error (Status: ${response.status}). Please check Vercel logs.`,
+            )
+          }
         }
+
         const data = await response.json()
         setPosts(data)
         setCurrentPostIndex(0) // Reset index when feed type changes

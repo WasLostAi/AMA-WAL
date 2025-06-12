@@ -6,6 +6,33 @@ import { initialCurrentProjectsMarkdown } from "@/lib/current-projects" // Impor
 
 export async function GET(request: Request) {
   try {
+    // Log environment variables to confirm they are accessible in the runtime
+    console.log("Checking environment variables in generate-social-posts API route:")
+    console.log("OPENAI_API_KEY present:", !!process.env.OPENAI_API_KEY)
+    console.log("BLOB_READ_WRITE_TOKEN present:", !!process.env.BLOB_READ_WRITE_TOKEN)
+
+    // Explicitly check for environment variables at the start
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY is not set in environment variables.")
+      return NextResponse.json(
+        {
+          error: "Server configuration error: OPENAI_API_KEY is not set.",
+          suggestion: "Please ensure OPENAI_API_KEY is configured in your Vercel project environment variables.",
+        },
+        { status: 500 },
+      )
+    }
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error("BLOB_READ_WRITE_TOKEN is not set in environment variables.")
+      return NextResponse.json(
+        {
+          error: "Server configuration error: BLOB_READ_WRITE_TOKEN is not set.",
+          suggestion: "Please ensure BLOB_READ_WRITE_TOKEN is configured in your Vercel project environment variables.",
+        },
+        { status: 500 },
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const feedType = searchParams.get("type") || "twitter" // Default to twitter
 
@@ -45,11 +72,26 @@ export async function GET(request: Request) {
     ${currentProjectsContent}
     `
 
-    const { text } = await generateText({
-      model: openai("gpt-4o"), // Using gpt-4o for generation [^4]
-      prompt: `Generate 5 social media posts for ${feedType} based on the provided project updates.`,
-      system: systemPrompt,
-    })
+    let text: string
+    try {
+      const result = await generateText({
+        model: openai("gpt-4o"), // Using gpt-4o for generation [^4]
+        prompt: `Generate 5 social media posts for ${feedType} based on the provided project updates.`,
+        system: systemPrompt,
+      })
+      text = result.text
+    } catch (aiError: any) {
+      console.error("Error during AI text generation:", aiError)
+      return NextResponse.json(
+        {
+          error: "AI generation failed.",
+          details: aiError.message || "An unknown error occurred during AI processing.",
+          suggestion:
+            "This might be an issue with the OpenAI API key, rate limits, or the model's response. Check OpenAI status and Vercel logs.",
+        },
+        { status: 500 },
+      )
+    }
 
     // Attempt to parse the AI's response as JSON
     let generatedPosts
@@ -61,7 +103,7 @@ export async function GET(request: Request) {
       }
     } catch (parseError) {
       console.error("Failed to parse AI generated text as JSON:", parseError)
-      console.error("AI raw response:", text)
+      console.error("AI raw response (if available):", text) // Log the raw text from AI
       // Fallback to a generic error message or a single default post
       return NextResponse.json(
         {
@@ -78,13 +120,13 @@ export async function GET(request: Request) {
       },
     })
   } catch (error: any) {
-    console.error(`Error in generate-social-posts API:`, error)
+    console.error(`A top-level unhandled error occurred in generate-social-posts API:`, error)
     return NextResponse.json(
       {
-        error: `Failed to generate social posts.`,
-        details: error.message || "An unknown error occurred.",
+        error: `A critical server error occurred.`,
+        details: error.message || "An unknown error occurred during API execution.",
         suggestion:
-          "This might indicate an issue with environment variables (OPENAI_API_KEY, BLOB_READ_WRITE_TOKEN), or an unhandled exception during AI generation or Blob access. Please check Vercel logs for more details.",
+          "This might indicate an issue with environment variables, module loading, or an unhandled exception. Please check Vercel logs for more details.",
       },
       { status: 500 },
     )
