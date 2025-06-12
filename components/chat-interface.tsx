@@ -22,20 +22,21 @@ export function ChatInterface() {
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0)
   const [showSuggestionsInInput, setShowSuggestionsInInput] = useState(false) // New state for input suggestions
 
-  const initialGreeting = "Hi, I'm Michael Robinson's AI representative. How can I help you today?"
+  const initialGreeting =
+    "Hello, I'm Michael Robinson's AI representative. I'm here to provide insights into his professional background and the innovative work at WasLost.Ai. How can I assist you?"
   const typingSpeed = 40 // milliseconds per character
   const typingRef = useRef<NodeJS.Timeout | null>(null)
   const suggestionIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const suggestedQuestions = [
-    "Tell me about Michael's professional background.",
-    "What are WasLost.Ai's key projects?",
-    "What technologies does Michael specialize in?",
-    "How does WasLost.Ai leverage blockchain?",
-    "What is Michael's vision for WasLost.Ai?",
-    "What kind of AI solutions does WasLost.Ai offer?",
-    "How can I contact Michael?",
+    "What are the latest trends in AI agent development?",
+    "How can decentralized applications impact future markets?",
+    "Tell me about innovative approaches to automated trading.",
+    "What's the vision behind WasLost.Ai's ecosystem?",
+    "How does AI integrate with blockchain technology?",
+    "What kind of solutions does WasLost.Ai offer for financial strategies?",
+    "Where can I learn more about the team's expertise?",
   ]
 
   useEffect(() => {

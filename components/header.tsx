@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { SocialPostScroller } from "@/components/social-post-scroller"
+import { useWallet } from "@solana/wallet-adapter-react" // Import useWallet
+import { useWalletModal } from "@solana/wallet-adapter-react-ui" // Import useWalletModal
 import { useRouter } from "next/navigation" // Import useRouter
 
 type FeedType = "twitter" | "linkedin"
@@ -12,7 +14,18 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [currentFeedType, setCurrentFeedType] = useState<FeedType>("twitter") // State to manage feed type
-  const router = useRouter() // Initialize useRouter
+
+  const { publicKey, connected, disconnect } = useWallet()
+  const { setVisible } = useWalletModal()
+  const router = useRouter()
+
+  // Your specific authorized wallet address
+  const authorizedWalletAddress = useMemo(() => process.env.NEXT_PUBLIC_AUTHORIZED_SOLANA_WALLET, [])
+
+  // Check if the connected wallet is YOUR authorized wallet
+  const isAuthorized = useMemo(() => {
+    return connected && publicKey?.toBase58() === authorizedWalletAddress
+  }, [connected, publicKey, authorizedWalletAddress])
 
   useEffect(() => {
     setLoaded(true)
@@ -35,7 +48,16 @@ export function Header() {
   }
 
   const handleConnectClick = () => {
-    router.push("/editor") // Navigate to the new editor page
+    if (isAuthorized) {
+      // If authorized, navigate to the editor
+      router.push("/admin/content-manager")
+    } else if (connected) {
+      // If connected but not authorized, disconnect
+      disconnect()
+    } else {
+      // If not connected, open the wallet modal
+      setVisible(true)
+    }
   }
 
   return (
@@ -65,12 +87,12 @@ export function Header() {
         {/* Social Post Scroller */}
         <SocialPostScroller feedType={currentFeedType} onToggleFeed={toggleFeedType} />
 
-        {/* CONNECT button */}
+        {/* CONNECT / EDITOR / DISCONNECT button */}
         <Button
-          onClick={handleConnectClick} // Add onClick handler
           className="jupiter-button-dark h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
+          onClick={handleConnectClick}
         >
-          CONNECT
+          {isAuthorized ? "EDITOR" : connected ? "DISCONNECT" : "CONNECT"}
         </Button>
       </div>
     </header>
