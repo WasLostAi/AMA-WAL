@@ -14,6 +14,7 @@ export async function saveCurrentProjects(content: string) {
     const blob = await put(BLOB_PATH, content, {
       access: "public", // Make it public so the API route can read it
       token: process.env.BLOB_READ_WRITE_TOKEN,
+      allowOverwrite: true, // Add this line to allow overwriting existing blobs [^1][^3]
     })
 
     console.log("Content saved to Vercel Blob:", blob.url)
