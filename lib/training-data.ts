@@ -105,4 +105,30 @@ export const trainingData = [
     answer:
       "Yes, Michael has experience managing remote teams of 5+ developers, fostering a culture of innovation and accountability.",
   },
+  // New training data for suggested questions
+  {
+    question: "What are WasLost.Ai's key projects?",
+    answer:
+      "WasLost.Ai is developing the WasLost.Ai Platform, a comprehensive AI agent ecosystem, and Agents of DISTOPIA, which focuses on character-driven AI agents with blockchain integration.",
+  },
+  {
+    question: "What technologies does Michael specialize in?",
+    answer:
+      "Michael specializes in AI Development (custom LLMs, ML/DL, NLP, CV, Generative AI), Blockchain Development (tokenized workflows, Solana), and Web Development (JS/TS, React, Next.js, Node.js).",
+  },
+  {
+    question: "How does WasLost.Ai leverage blockchain?",
+    answer:
+      "WasLost.Ai leverages blockchain for tokenized Web3 workflows, implementing tokenized agent systems on Solana, and creating decentralized data infrastructure.",
+  },
+  {
+    question: "What is Michael's vision for WasLost.Ai?",
+    answer:
+      "Michael's vision for WasLost.Ai is to empower individuals and businesses by providing agentic solutions that improve lives, focusing on practical utility combined with blockchain innovation in generative and financial/trading applications.",
+  },
+  {
+    question: "What kind of AI solutions does WasLost.Ai offer?",
+    answer:
+      "WasLost.Ai offers a comprehensive ecosystem of over 200 specialized AI agents, focusing on generative AI for creative and business applications, as well as AI-driven trading and strategy automation.",
+  },
 ]
