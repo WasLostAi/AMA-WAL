@@ -5,8 +5,8 @@ import type React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useActionState } from "react"
 import { saveSocialPostsMarkdown } from "./social-post-actions"
-import { uploadFileWithTag, getFileMetadata, deleteFile } from "./file-upload-actions" // Import processFileForRAG
-import { suggestTagsFromFileContent } from "./ai-tagging-action" // New AI tagging action
+import { uploadFileWithTag, getFileMetadata, deleteFile } from "./file-upload-actions"
+import { suggestTagsFromFile } from "./ai-tagging-action" // Updated import
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,9 +15,6 @@ import { initialProjectUpdatesMarkdown } from "@/lib/current-projects"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { useRouter } from "next/navigation"
 import { XIcon, UploadCloudIcon, FileTextIcon, ImageIcon, FileIcon, Trash2Icon, SparklesIcon } from "lucide-react" // Icons
-import pdf from "pdf-parse"
-import mammoth from "mammoth"
-import { convert } from "html-to-text"
 
 interface FileMetadata {
   fileName: string
@@ -116,18 +113,23 @@ export default function ContentManagerPage() {
       alert("Please select a file first to suggest tags.")
       return
     }
+
     setIsSuggestingTags(true)
     try {
-      // For simplicity, we'll suggest tags based on the first selected file's content
-      // In a real app, you might process a summary of all files or allow per-file tagging.
+      // For simplicity, we'll suggest tags based on the first selected file
       const file = selectedFiles[0]
-      const fileBuffer = Buffer.from(await file.arrayBuffer())
-      const textContent = await extractTextFromFile(fileBuffer, file.type) // Re-use extractTextFromFile from actions
-      if (textContent) {
-        const suggested = await suggestTagsFromFileContent(textContent)
-        setFileTagInput(suggested.join(", "))
+
+      // Create FormData with the file
+      const formData = new FormData()
+      formData.append("file", file)
+
+      // Call the server action to suggest tags
+      const result = await suggestTagsFromFile(formData)
+
+      if (result.success && result.tags.length > 0) {
+        setFileTagInput(result.tags.join(", "))
       } else {
-        alert("Could not extract text from the selected file to suggest tags.")
+        alert(result.message || "Could not suggest tags for this file type.")
       }
     } catch (error) {
       console.error("Error suggesting tags:", error)
@@ -222,24 +224,6 @@ export default function ContentManagerPage() {
       return <FileTextIcon className="h-6 w-6 text-green-500" /> // Text/Markdown/HTML specific icon color
     }
     return <FileIcon className="h-6 w-6 text-muted-foreground" />
-  }
-
-  // Helper function to extract text (copied from file-upload-actions for client-side preview/tagging)
-  async function extractTextFromFile(fileBuffer: Buffer, contentType: string): Promise<string> {
-    if (contentType.includes("text/plain") || contentType.includes("text/markdown")) {
-      return fileBuffer.toString("utf-8")
-    } else if (contentType.includes("application/pdf")) {
-      const data = await pdf(fileBuffer)
-      return data.text
-    } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
-      const result = await mammoth.extractRawText({ arrayBuffer: fileBuffer.buffer })
-      return result.value
-    } else if (contentType.includes("text/html")) {
-      return convert(fileBuffer.toString("utf-8"), {
-        wordwrap: 130,
-      })
-    }
-    return ""
   }
 
   // Only render the editor if authorized

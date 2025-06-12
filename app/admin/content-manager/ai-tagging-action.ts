@@ -1,14 +1,66 @@
 "use server"
 
 import { openai } from "@ai-sdk/openai"
+import pdf from "pdf-parse"
+import mammoth from "mammoth"
+import { convert } from "html-to-text"
 
-export async function suggestTagsFromFileContent(fileContent: string): Promise<string[]> {
+// Helper function to extract text from file (server-side only)
+async function extractTextFromFile(fileBuffer: Buffer, contentType: string): Promise<string> {
+  if (contentType.includes("text/plain") || contentType.includes("text/markdown")) {
+    return fileBuffer.toString("utf-8")
+  } else if (contentType.includes("application/pdf")) {
+    const data = await pdf(fileBuffer)
+    return data.text
+  } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+    const result = await mammoth.extractRawText({ arrayBuffer: fileBuffer.buffer })
+    return result.value
+  } else if (contentType.includes("text/html")) {
+    return convert(fileBuffer.toString("utf-8"), {
+      wordwrap: 130,
+    })
+  }
+  // Add more parsers for other document types as needed
+  console.warn(`Unsupported file type for text extraction: ${contentType}`)
+  return "" // Return empty string for unsupported types
+}
+
+export async function suggestTagsFromFile(
+  formData: FormData,
+): Promise<{ tags: string[]; success: boolean; message?: string }> {
   if (!process.env.OPENAI_API_KEY) {
     console.error("OPENAI_API_KEY environment variable is not set.")
-    throw new Error("Server configuration error: OpenAI API key is missing.")
+    return {
+      tags: [],
+      success: false,
+      message: "Server configuration error: OpenAI API key is missing.",
+    }
   }
 
   try {
+    const file = formData.get("file") as File
+    if (!file) {
+      return {
+        tags: [],
+        success: false,
+        message: "No file provided.",
+      }
+    }
+
+    // Convert File to Buffer for processing
+    const fileBuffer = Buffer.from(await file.arrayBuffer())
+
+    // Extract text from file
+    const fileContent = await extractTextFromFile(fileBuffer, file.type)
+    if (!fileContent) {
+      return {
+        tags: [],
+        success: false,
+        message: `Could not extract text from file type: ${file.type}`,
+      }
+    }
+
+    // Generate tags using OpenAI
     const { text } = await openai.chat.completions.create({
       model: "gpt-4o", // Using a chat model for better instruction following
       messages: [
@@ -33,9 +85,16 @@ export async function suggestTagsFromFileContent(fileContent: string): Promise<s
       .map((tag) => tag.trim().toLowerCase().replace(/\s+/g, "-")) // Clean and format tags
       .filter(Boolean) // Remove empty strings
 
-    return tags
+    return {
+      tags,
+      success: true,
+    }
   } catch (error) {
     console.error("Error suggesting tags with AI:", error)
-    return [] // Return empty array on error
+    return {
+      tags: [],
+      success: false,
+      message: `Error suggesting tags: ${error instanceof Error ? error.message : String(error)}`,
+    }
   }
 }
