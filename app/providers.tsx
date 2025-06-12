@@ -5,7 +5,8 @@ import { useMemo } from "react"
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base"
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react"
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui"
-import { PhantomWalletAdapter, SolflareWalletAdapter, BackpackWalletAdapter } from "@solana/wallet-adapter-wallets"
+import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets" // Keep these if they are still here
+import { BackpackWalletAdapter } from "@solana/wallet-adapter-backpack" // Correct import for Backpack
 
 // Default styles that can be overridden by your app
 import "@solana/wallet-adapter-react-ui/styles.css"
@@ -22,7 +23,7 @@ export function SolanaWalletProvider({ children }: { children: React.ReactNode }
     () => [
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
-      new BackpackWalletAdapter(),
+      new BackpackWalletAdapter(), // Now imported from its dedicated package
       // Add more wallets here if desired
     ],
     [network],
