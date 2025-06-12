@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     // Log environment variables to confirm they are accessible in the runtime
     console.log("API Route: Checking environment variables...")
     console.log("API Route: OPENAI_API_KEY present:", !!process.env.OPENAI_API_KEY)
-    console.log("API Route: BLOB_READ_WRITE_TOKEN present:", !!process.env.BLOB_READ_WRITE_TOKEN)
+    console.log("API Route: BLOB2_READ_WRITE_TOKEN present:", !!process.env.BLOB2_READ_WRITE_TOKEN)
 
     // Explicitly check for environment variables at the start
     if (!process.env.OPENAI_API_KEY) {
@@ -24,12 +24,13 @@ export async function GET(request: Request) {
         { status: 500 },
       )
     }
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      console.error("BLOB_READ_WRITE_TOKEN is not set in environment variables.")
+    if (!process.env.BLOB2_READ_WRITE_TOKEN) {
+      console.error("BLOB2_READ_WRITE_TOKEN is not set in environment variables.")
       return NextResponse.json(
         {
-          error: "Server configuration error: BLOB_READ_WRITE_TOKEN is not set.",
-          suggestion: "Please ensure BLOB_READ_WRITE_TOKEN is configured in your Vercel project environment variables.",
+          error: "Server configuration error: BLOB2_READ_WRITE_TOKEN is not set.",
+          suggestion:
+            "Please ensure BLOB2_READ_WRITE_TOKEN is configured in your Vercel project environment variables.",
         },
         { status: 500 },
       )
