@@ -7,13 +7,15 @@ const BLOB_PATH = "waslostai-current-projects.md"
 
 export async function saveCurrentProjects(content: string) {
   try {
-    if (!process.env.BLOB2_READ_WRITE_TOKEN) {
+    // Corrected to use BLOB_READ_WRITE_TOKEN
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
       throw new Error("BLOB_READ_WRITE_TOKEN environment variable is not set.")
     }
 
     const blob = await put(BLOB_PATH, content, {
       access: "public", // Make it public so the API route can read it
-      token: process.env.BLOB2_READ_WRITE_TOKEN,
+      // Corrected to use BLOB_READ_WRITE_TOKEN
+      token: process.env.BLOB_READ_WRITE_TOKEN,
       allowOverwrite: true, // Add this line to allow overwriting existing blobs [^1][^3]
     })
 
@@ -27,13 +29,15 @@ export async function saveCurrentProjects(content: string) {
 
 export async function getBlobContent(): Promise<string | null> {
   try {
-    if (!process.env.BLOB2_READ_WRITE_TOKEN) {
+    // Corrected to use BLOB_READ_WRITE_TOKEN
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
       console.warn("BLOB_READ_WRITE_TOKEN environment variable is not set. Cannot read from Blob.")
       return null
     }
 
     const blob = await get(BLOB_PATH, {
-      token: process.env.BLOB2_READ_WRITE_TOKEN,
+      // Corrected to use BLOB_READ_WRITE_TOKEN
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     })
 
     if (blob) {
