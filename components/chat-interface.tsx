@@ -30,13 +30,13 @@ export function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const suggestedQuestions = [
-    "Can you tell me about Michael's experience in leading development teams?",
-    "What kind of applications has Michael built that handled high user traffic?",
-    "How has Michael's background in AI and blockchain evolved?",
-    "What is Michael's approach to product development and team collaboration?",
-    "Could you elaborate on Michael's technical proficiencies?",
-    "What are some of the key achievements from Michael's career?",
-    "Where can I find more information about WasLost.Ai's mission?",
+    "What are the latest trends in AI agent development?",
+    "How can decentralized applications impact future markets?",
+    "Tell me about innovative approaches to automated trading.",
+    "What's the vision behind WasLost.Ai's ecosystem?",
+    "How does AI integrate with blockchain technology?",
+    "What kind of solutions does WasLost.Ai offer for financial strategies?",
+    "Where can I learn more about the team's expertise?",
   ]
 
   useEffect(() => {
