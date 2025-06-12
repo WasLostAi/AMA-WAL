@@ -13,43 +13,6 @@ interface SocialPost {
   createdAt?: string // Optional, if you want to display it
 }
 
-// Placeholder for LinkedIn data (since we're only implementing X API for now)
-const linkedinPosts: SocialPost[] = [
-  {
-    id: 1,
-    type: "linkedin",
-    headline: "New Article: Agentic Solutions",
-    content:
-      "Just published a deep dive into Agentic Solutions and their impact on Web3 workflows. Check it out on my LinkedIn profile!",
-  },
-  {
-    id: 2,
-    type: "linkedin",
-    headline: "Hiring for AI Research",
-    content:
-      "WasLost.Ai is looking for talented AI researchers to join our team. DM me if you're passionate about AI and Web3!",
-  },
-  {
-    id: 3,
-    type: "linkedin",
-    headline: "WasLost.Ai Product Launch",
-    content: "Excited to announce the upcoming launch of our new AI agent ecosystem. Stay tuned for more updates!",
-  },
-  {
-    id: 4,
-    type: "linkedin",
-    headline: "Speaking at Web3 Summit",
-    content: "Honored to be speaking at the upcoming Web3 Summit on the future of decentralized AI. See you there!",
-  },
-  {
-    id: 5,
-    type: "linkedin",
-    headline: "Partnership Announcement",
-    content:
-      "Thrilled to announce a new strategic partnership that will accelerate our AI development. More details soon!",
-  },
-]
-
 interface SocialPostScrollerProps {
   feedType: SocialPostType
   onToggleFeed: () => void
@@ -68,17 +31,19 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
       try {
         let data: SocialPost[] = []
         if (feedType === "twitter") {
-          const response = await fetch("/api/x-posts") // Call the new X API route
+          const response = await fetch("/api/x-posts") // Call the X API route (AI-generated)
           if (!response.ok) {
-            // Parse error details from the backend response
             const errorResponse = await response.json()
-            // Use the 'error' or 'suggestion' field from the backend response
             throw new Error(errorResponse.error || errorResponse.suggestion || "Failed to fetch Twitter posts")
           }
           data = await response.json()
         } else if (feedType === "linkedin") {
-          // For LinkedIn, we're still using placeholder data for now
-          data = linkedinPosts
+          const response = await fetch("/api/linkedin-posts") // Call the new LinkedIn API route (AI-generated)
+          if (!response.ok) {
+            const errorResponse = await response.json()
+            throw new Error(errorResponse.error || errorResponse.suggestion || "Failed to fetch LinkedIn posts")
+          }
+          data = await response.json()
         }
         setPosts(data)
         setCurrentPostIndex(0) // Reset index when feed type changes
