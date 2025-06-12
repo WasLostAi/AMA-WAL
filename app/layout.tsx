@@ -3,7 +3,6 @@ import type { Metadata } from "next"
 import { Inter, Syne } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { SolanaWalletProvider } from "@/app/providers" // Import the provider
 
 const inter = Inter({
   subsets: ["latin"],
@@ -37,11 +36,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${syne.variable}`}>
       <body style={{ backgroundColor: "#0C0C0C" }} className="text-white antialiased font-inter">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
-          <SolanaWalletProvider>
-            {" "}
-            {/* Wrap children with SolanaWalletProvider */}
-            {children}
-          </SolanaWalletProvider>
+          {children}
         </ThemeProvider>
       </body>
     </html>
