@@ -5,8 +5,8 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ChatMessage } from "@/components/chat-message"
 import { AiAvatar } from "@/components/ai-avatar"
-import { ChatMessage } from "@/components/chat-message" // Import ChatMessage component
 
 type Message = {
   role: "user" | "assistant"
@@ -18,11 +18,25 @@ export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isTypingInitial, setIsTypingInitial] = useState(true)
   const [displayedInitialText, setDisplayedInitialText] = useState("")
-  const [isLoading, setIsLoading] = useState(false) // New state for loading
+  const [isLoading, setIsLoading] = useState(false)
+  const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0)
+  const [showSuggestionsInInput, setShowSuggestionsInInput] = useState(false) // New state for input suggestions
+
   const initialGreeting = "Hi, I'm Michael Robinson's AI representative. How can I help you today?"
   const typingSpeed = 40 // milliseconds per character
   const typingRef = useRef<NodeJS.Timeout | null>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null) // Ref for scrolling to bottom
+  const suggestionIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const suggestedQuestions = [
+    "Tell me about Michael's professional background.",
+    "What are WasLost.Ai's key projects?",
+    "What technologies does Michael specialize in?",
+    "How does WasLost.Ai leverage blockchain?",
+    "What is Michael's vision for WasLost.Ai?",
+    "What kind of AI solutions does WasLost.Ai offer?",
+    "How can I contact Michael?",
+  ]
 
   useEffect(() => {
     let i = 0
@@ -35,8 +49,8 @@ export function ChatInterface() {
       } else {
         if (typingRef.current) clearInterval(typingRef.current)
         setIsTypingInitial(false)
-        // Add initial greeting to messages after typing animation
         setMessages([{ role: "assistant", content: initialGreeting }])
+        setShowSuggestionsInInput(true) // Start showing suggestions in input after initial greeting
       }
     }, typingSpeed)
 
@@ -45,10 +59,23 @@ export function ChatInterface() {
     }
   }, [])
 
-  // Scroll to bottom of messages whenever messages change
+  useEffect(() => {
+    if (showSuggestionsInInput && !inputValue) {
+      // Only cycle if input is empty
+      suggestionIntervalRef.current = setInterval(() => {
+        setCurrentSuggestionIndex((prevIndex) => (prevIndex + 1) % suggestedQuestions.length)
+      }, 5000) // Change suggestion every 5 seconds
+    } else {
+      if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current)
+    }
+    return () => {
+      if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current)
+    }
+  }, [showSuggestionsInInput, inputValue, suggestedQuestions.length])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+  }, [messages, isLoading])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,7 +84,8 @@ export function ChatInterface() {
     const userMessage: Message = { role: "user", content: inputValue.trim() }
     setMessages((prevMessages) => [...prevMessages, userMessage])
     setInputValue("")
-    setIsLoading(true) // Set loading state
+    setIsLoading(true)
+    setShowSuggestionsInInput(false) // Hide suggestions once user starts typing/submitting
 
     try {
       const response = await fetch("/api/chat", {
@@ -67,7 +95,7 @@ export function ChatInterface() {
         },
         body: JSON.stringify({
           message: inputValue.trim(),
-          history: [...messages, userMessage], // Send full history
+          history: [...messages, userMessage],
         }),
       })
 
@@ -85,43 +113,75 @@ export function ChatInterface() {
         { role: "assistant", content: "Sorry, I'm having trouble connecting right now. Please try again later." },
       ])
     } finally {
-      setIsLoading(false) // Clear loading state
+      setIsLoading(false)
+      setShowSuggestionsInInput(true) // Show suggestions again after AI responds
+    }
+  }
+
+  const handleInputClick = () => {
+    if (!inputValue && showSuggestionsInInput && !isLoading && !isTypingInitial) {
+      setInputValue(suggestedQuestions[currentSuggestionIndex])
+      if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current) // Stop cycling when filled
     }
   }
 
   return (
     <div className="w-full max-w-3xl mx-auto fade-in">
-      {/* Outer glass panel */}
       <div className="jupiter-outer-panel p-6 mb-8">
-        {/* Chat history display area */}
         <div className="jupiter-panel p-4 flex flex-col gap-4 mb-6 max-h-[400px] overflow-y-auto">
           {messages.map((msg, index) => (
             <ChatMessage key={index} message={msg} />
           ))}
+          {isTypingInitial && (
+            <div className="flex gap-3 p-4 rounded-lg bg-black/30 border border-border/40">
+              <AiAvatar />
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground mb-1">WasLost AI</p>
+                <div className="space-y-2">
+                  <p>
+                    {displayedInitialText}
+                    <span className="typing-cursor"></span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           {isLoading && (
             <div className="flex gap-3 p-4 rounded-lg bg-black/30 border border-border/40">
               <AiAvatar />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground mb-1">WasLost AI</p>
                 <div className="space-y-2">
-                  <p className="matrix-loading">Thinking...</p> {/* Loading indicator */}
+                  <p className="matrix-loading">Thinking...</p>
                 </div>
               </div>
             </div>
           )}
-          <div ref={messagesEndRef} /> {/* Scroll anchor */}
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Input form */}
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask me about WasLost.Ai or Michael..."
+            onChange={(e) => {
+              setInputValue(e.target.value)
+              // Stop cycling suggestions if user starts typing
+              if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current)
+            }}
+            onClick={handleInputClick} // Handle click to fill input
+            placeholder={
+              showSuggestionsInInput && !isLoading && !isTypingInitial && !inputValue
+                ? suggestedQuestions[currentSuggestionIndex]
+                : "Ask me about WasLost.Ai or Michael..."
+            }
             className="flex-1 px-3 py-2"
-            disabled={isLoading} // Disable input while loading
+            disabled={isLoading || isTypingInitial}
           />
-          <Button type="submit" className="jupiter-button-dark h-12 px-6" disabled={isLoading}>
+          <Button
+            type="submit"
+            className="jupiter-button-dark h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
+            disabled={isLoading || isTypingInitial}
+          >
             AMA!
           </Button>
         </form>

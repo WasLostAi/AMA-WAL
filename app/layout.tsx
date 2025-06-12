@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   title: "WasLost Ai",
   description: "Ask Me Anything!",
   icons: {
-    icon: "/favicon.ico",
+    icon: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Untitled%20design%20%2839%29-Bpnali2Y0fIY10nwBriEJbyBqmXGFv.png", // Corrected favicon to use the site logo
     apple: "/apple-icon.png",
   },
     generator: 'v0.dev'
