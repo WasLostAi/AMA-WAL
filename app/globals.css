@@ -1,0 +1,309 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Jupiter color scheme - Adjusted for Neumorphism */
+    --background: 0 0% 5%; /* Jupiter space black */
+    --foreground: 195 100% 95%; /* Jupiter cloud */
+
+    --card: 0 0% 7%; /* Base for neumorphic elements */
+    --card-foreground: 195 100% 95%;
+
+    --popover: 0 0% 7%;
+    --popover-foreground: 195 100% 95%;
+
+    --primary: 174 100% 45%; /* Jupiter trifid teal for accents */
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 84 100% 59%; /* Jupiter venus lime for accents */
+    --secondary-foreground: 0 0% 0%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 174 100% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 10%; /* Subtle border for neumorphic elements */
+    --input: 0 0% 7%; /* Base for input fields */
+    --ring: 174 100% 45%;
+
+    --radius: 0.75rem; /* Slightly larger radius for softer look */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-inter;
+    background-color: #0c0c0c; /* Jupiter space black */
+  }
+
+  /* Typography System */
+  h1 {
+    @apply font-syne text-5xl lg:text-6xl font-bold leading-tight tracking-tight;
+  }
+
+  h2 {
+    @apply font-syne text-3xl lg:text-4xl font-normal leading-tight tracking-tight;
+  }
+
+  h3 {
+    @apply font-syne text-2xl lg:text-3xl font-semibold leading-snug;
+  }
+
+  .subheading-large {
+    @apply font-inter text-xl lg:text-2xl font-normal leading-relaxed;
+  }
+
+  .subheading-medium {
+    @apply font-inter text-lg lg:text-xl font-normal leading-relaxed;
+  }
+
+  .subheading-regular {
+    @apply font-inter text-base lg:text-lg font-normal leading-relaxed;
+  }
+
+  p {
+    @apply font-inter text-base leading-relaxed;
+  }
+
+  .caption {
+    @apply font-inter text-sm leading-relaxed text-muted-foreground;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px; /* Width of the scrollbar */
+  }
+
+  ::-webkit-scrollbar-track {
+    background: theme("colors.neumorphic.dark"); /* Color of the track */
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: theme("colors.neumorphic.light"); /* Color of the scroll thumb */
+    border-radius: 10px;
+    border: 2px solid theme("colors.neumorphic.dark"); /* Creates a subtle border around the thumb */
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme("colors.muted.foreground"); /* Color when hovering over the thumb */
+  }
+
+  /* Ensure no default blue outlines or link colors */
+  a {
+    @apply text-foreground; /* Default link color */
+    text-decoration: none;
+  }
+
+  a:hover {
+    @apply text-foreground; /* Ensure hover color is not blue */
+    text-decoration: none; /* Remove default underline */
+  }
+}
+
+@layer components {
+  /* Neumorphic UI Components */
+  .neumorphic-base {
+    background-color: theme("colors.neumorphic.base");
+    border-radius: theme("borderRadius.lg");
+    box-shadow: 3px 3px 6px theme("colors.neumorphic.dark"), -3px -3px 6px theme("colors.neumorphic.light"); /* Reduced spread */
+    transition: all 0.3s ease;
+  }
+
+  .neumorphic-inset {
+    background-color: theme("colors.neumorphic.base");
+    border-radius: theme("borderRadius.lg");
+    box-shadow: inset 1.5px 1.5px 3px theme("colors.neumorphic.dark"), inset -1.5px -1.5px 3px
+      theme("colors.neumorphic.light"); /* Reduced spread */
+    transition: all 0.3s ease;
+  }
+
+  .jupiter-card {
+    @apply neumorphic-base;
+    background-color: rgba(12, 12, 12, 0.6); /* Slightly more opaque for neumorphic base */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05); /* Very subtle border */
+  }
+
+  .jupiter-panel {
+    @apply neumorphic-base;
+    background-color: rgba(12, 12, 12, 0.7); /* Slightly more opaque for neumorphic base */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05); /* Very subtle border */
+  }
+
+  .jupiter-outer-panel {
+    @apply neumorphic-base;
+    background-color: rgba(12, 12, 12, 0.8); /* Slightly more opaque for neumorphic base */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.03); /* Even more subtle border */
+  }
+
+  .jupiter-button {
+    @apply font-syne font-bold rounded-lg;
+    transition: all 0.3s ease;
+  }
+
+  .jupiter-button-gradient {
+    @apply jupiter-button text-black;
+    background: linear-gradient(to right, #2ed3b7, #c7f284);
+    box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.4), -3px -3px 6px rgba(26, 26, 26, 0.4);
+  }
+  .jupiter-button-gradient:hover {
+    box-shadow: 1.5px 1.5px 3px rgba(0, 0, 0, 0.3), -1.5px -1.5px 3px rgba(26, 26, 26, 0.3);
+    transform: translateY(-1px);
+  }
+  .jupiter-button-gradient:active {
+    box-shadow: inset 1.5px 1.5px 3px rgba(0, 0, 0, 0.4), inset -1.5px -1.5px 3px rgba(26, 26, 26, 0.4);
+    transform: translateY(1px);
+  }
+
+  .jupiter-button-dark {
+    @apply jupiter-button text-lg font-bold uppercase;
+    color: #afcd4f !important; /* Green text for static state */
+    background-color: theme("colors.neumorphic.base") !important; /* Ensure base background is applied */
+    box-shadow: 3px 3px 6px theme("colors.neumorphic.dark"), -3px -3px 6px theme("colors.neumorphic.light");
+    border: none; /* Neumorphic buttons typically don't have hard borders */
+  }
+  .jupiter-button-dark:hover {
+    color: black !important; /* Black text on hover */
+    /* Removed background-color change on hover to keep the base color */
+    box-shadow: inset 1.5px 1.5px 3px theme("colors.neumorphic.dark"), inset -1.5px -1.5px 3px
+      theme("colors.neumorphic.light"); /* Depressed effect on hover */
+    transform: translateY(1px); /* Depressed effect on hover */
+  }
+  .jupiter-button-dark:active {
+    /* No specific active state needed if hover handles depressed effect, or define a different one if desired */
+  }
+
+  .jupiter-price {
+    @apply font-jetbrains tabular-nums;
+  }
+
+  .jupiter-price-up {
+    @apply text-[#00ff41];
+    text-shadow: 0 0 3px rgba(0, 255, 65, 0.5);
+  }
+
+  .jupiter-price-down {
+    @apply text-[#ff3b30];
+    text-shadow: 0 0 3px rgba(255, 59, 48, 0.5);
+  }
+
+  .jupiter-price-neutral {
+    @apply text-[#e8f9ff];
+  }
+
+  /* Custom inner shadow for debossed effect on inputs */
+  .shadow-inner-neumorphic {
+    box-shadow: inset 1.5px 1.5px 4px theme("colors.neumorphic.dark"), inset -1.5px -1.5px 4px
+      theme("colors.neumorphic.light");
+  }
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: currentColor;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  from,
+  to {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.connect-btn {
+  transition: all 0.3s ease;
+}
+
+.connect-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(200, 242, 132, 0.3);
+}
+
+.feature-icon {
+  transition: transform 0.3s ease;
+}
+
+.feature-card:hover .feature-icon {
+  transform: translateY(-5px);
+}
+
+/* Gradient text styles */
+.gradient-text {
+  background: linear-gradient(90deg, #2ed3b7 0%, #c7f284 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-fill-color: transparent;
+}
+
+.gradient-heading {
+  display: inline-block;
+  background-image: linear-gradient(to right, #2ed3b7, #c7f284);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding: 0.2em 0 10px; /* 10px padding at the bottom */
+  position: relative;
+  width: 100%;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.gradient-bg {
+  background: linear-gradient(to right, #2ed3b7, #c7f284);
+}
+
+/* Matrix animation for loading */
+@keyframes matrixLoading {
+  0% {
+    box-shadow: 0 0 5px rgba(46, 211, 183, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(199, 242, 132, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(46, 211, 183, 0.5);
+  }
+}
+
+.matrix-loading {
+  animation: matrixLoading 2s infinite;
+}
