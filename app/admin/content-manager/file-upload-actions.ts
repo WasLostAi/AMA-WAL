@@ -4,8 +4,7 @@ import { put, del } from "@vercel/blob"
 import { revalidatePath } from "next/cache"
 import { openai } from "@ai-sdk/openai"
 import { supabaseAdmin } from "@/lib/supabase"
-import pdf from "pdf-parse"
-import mammoth from "mammoth"
+// Removed pdf-parse and mammoth imports due to fs.readFileSync error
 import { convert } from "html-to-text"
 
 interface FileMetadata {
@@ -81,20 +80,13 @@ function chunkText(text: string, chunkSize = 1000, overlap = 200): string[] {
 async function extractTextFromFile(fileBuffer: Buffer, contentType: string): Promise<string> {
   if (contentType.includes("text/plain") || contentType.includes("text/markdown")) {
     return fileBuffer.toString("utf-8")
-  } else if (contentType.includes("application/pdf")) {
-    const data = await pdf(fileBuffer)
-    return data.text
-  } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
-    // .docx files
-    const result = await mammoth.extractRawText({ arrayBuffer: fileBuffer.buffer })
-    return result.value
   } else if (contentType.includes("text/html")) {
     return convert(fileBuffer.toString("utf-8"), {
       wordwrap: 130,
     })
   }
-  // For images or other unsupported types, return empty string
-  console.warn(`Unsupported file type for text extraction: ${contentType}`)
+  // For PDFs, DOCX, images, or other unsupported types, return empty string
+  console.warn(`Unsupported file type for text extraction for AI memory: ${contentType}`)
   return ""
 }
 
@@ -109,10 +101,10 @@ export async function processFileForRAG(filePath: string, tags: string[], conten
     const fullText = await extractTextFromFile(fileBuffer, contentType)
 
     if (!fullText) {
-      // If no text could be extracted (e.g., it's an image), skip RAG processing
+      // If no text could be extracted (e.g., it's an image, PDF, or DOCX), skip RAG processing
       console.log(`Skipping RAG processing for ${filePath}: No extractable text found for file type: ${contentType}`)
       return {
-        message: `File uploaded, but RAG processing skipped for file type: ${contentType}.`,
+        message: `File uploaded, but RAG processing skipped for file type: ${contentType}. Supported types: .txt, .md, .html.`,
         success: true, // Still consider the upload successful for the file itself
       }
     }
@@ -177,7 +169,7 @@ export async function uploadFileWithTag(prevState: any, formData: FormData) {
 
   try {
     // Convert File to Buffer for processing
-    const fileBuffer = Buffer.from(await file.arrayBuffer())
+    const fileBuffer = Buffer.from(await file.arrayArrayBuffer())
 
     // Upload the file to Vercel Blob
     const filePath = `uploaded-files/${Date.now()}-${file.name}` // Unique path

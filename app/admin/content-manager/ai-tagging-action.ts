@@ -1,27 +1,20 @@
 "use server"
 
 import { openai } from "@ai-sdk/openai"
-import pdf from "pdf-parse"
-import mammoth from "mammoth"
+// Removed pdf-parse and mammoth imports due to fs.readFileSync error
 import { convert } from "html-to-text"
 
 // Helper function to extract text from file (server-side only)
 async function extractTextFromFile(fileBuffer: Buffer, contentType: string): Promise<string> {
   if (contentType.includes("text/plain") || contentType.includes("text/markdown")) {
     return fileBuffer.toString("utf-8")
-  } else if (contentType.includes("application/pdf")) {
-    const data = await pdf(fileBuffer)
-    return data.text
-  } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
-    const result = await mammoth.extractRawText({ arrayBuffer: fileBuffer.buffer })
-    return result.value
   } else if (contentType.includes("text/html")) {
     return convert(fileBuffer.toString("utf-8"), {
       wordwrap: 130,
     })
   }
-  // For images or other unsupported types, return empty string
-  console.warn(`Unsupported file type for text extraction: ${contentType}`)
+  // For PDFs, DOCX, images, or other unsupported types, return empty string
+  console.warn(`Unsupported file type for text extraction for AI memory: ${contentType}`)
   return ""
 }
 
@@ -53,11 +46,11 @@ export async function suggestTagsFromFile(
     // Extract text from file
     const fileContent = await extractTextFromFile(fileBuffer, file.type)
     if (!fileContent) {
-      // If no text could be extracted (e.g., it's an image)
+      // If no text could be extracted (e.g., it's an image, PDF, or DOCX)
       return {
         tags: [],
         success: false,
-        message: `Cannot extract text from file type "${file.type}" to suggest tags.`,
+        message: `Cannot extract text from file type "${file.type}" to suggest tags. Supported types: .txt, .md, .html.`,
       }
     }
 

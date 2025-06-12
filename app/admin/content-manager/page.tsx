@@ -210,12 +210,7 @@ export default function ContentManagerPage() {
     if (contentType.startsWith("image/")) {
       return <ImageIcon className="h-6 w-6 text-[#afcd4f]" />
     }
-    if (contentType.includes("pdf")) {
-      return <FileTextIcon className="h-6 w-6 text-red-500" /> // PDF specific icon color
-    }
-    if (contentType.includes("wordprocessingml.document")) {
-      return <FileTextIcon className="h-6 w-6 text-blue-500" /> // DOCX specific icon color
-    }
+    // Removed specific icons for PDF/DOCX as they are no longer text-extractable
     if (
       contentType.includes("text/plain") ||
       contentType.includes("text/markdown") ||
@@ -284,8 +279,9 @@ export default function ContentManagerPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4 text-center">
-              Upload images, planning documents, or other files for the AI agent to reference. Tag them for easy
-              retrieval.
+              Upload files for the AI agent to reference. Supported for AI memory (RAG & tag suggestions):{" "}
+              <span className="font-semibold text-white">.txt, .md, .html</span>. Other file types (e.g., images, PDFs,
+              DOCX) will be uploaded but not processed for AI memory.
             </p>
             <div
               className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
