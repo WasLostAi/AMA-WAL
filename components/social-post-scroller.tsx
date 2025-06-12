@@ -2,7 +2,6 @@
 
 import { TwitterIcon, LinkedInIcon } from "@/components/icons"
 import { useEffect, useState } from "react"
-import Link from "next/link" // Import Link component
 
 type SocialPostType = "twitter" | "linkedin"
 
@@ -85,13 +84,6 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
   }
 
   const currentPost = posts[currentPostIndex]
-  const userHandle = "waslostai" // Your handle for both platforms
-
-  // Construct a theoretical URL for the profile or a general feed
-  const postUrl =
-    currentPost.type === "twitter"
-      ? `https://x.com/${userHandle}` // Link to your X profile
-      : `https://www.linkedin.com/in/${userHandle}` // Link to your LinkedIn profile
 
   return (
     <div className="neumorphic-base p-2 flex items-center gap-3 flex-1 mx-4 h-12 overflow-hidden">
@@ -109,12 +101,10 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
         />
       )}
       <div className="flex-1 overflow-hidden">
-        <Link href={postUrl} target="_blank" rel="noopener noreferrer" className="social-post-link">
-          <div className="whitespace-nowrap animate-marquee">
-            <span className="text-[#afcd4f] font-bold mr-2">{currentPost.headline}:</span>
-            <span className="text-white">{currentPost.content}</span>
-          </div>
-        </Link>
+        <div className="whitespace-nowrap animate-marquee">
+          <span className="text-[#afcd4f] font-bold mr-2">{currentPost.headline}:</span>
+          <span className="text-white">{currentPost.content}</span>
+        </div>
       </div>
     </div>
   )
