@@ -21,6 +21,7 @@ export async function saveSocialPostsMarkdown(prevState: any, formData: FormData
     const blob = await put("social-posts-source.md", markdownContent, {
       access: "public", // Make it publicly accessible for the API route to fetch
       contentType: "text/markdown",
+      allowOverwrite: true,
     })
 
     // Revalidate the API route that fetches this content
