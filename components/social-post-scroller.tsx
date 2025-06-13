@@ -32,8 +32,22 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
         // Fetch from the single AI-powered route
         const response = await fetch(`/api/generate-social-posts?type=${feedType}`)
         if (!response.ok) {
-          const errorResponse = await response.json()
-          throw new Error(errorResponse.error || errorResponse.suggestion || `Failed to generate ${feedType} posts.`)
+          // Check content type before attempting to parse as JSON
+          const contentType = response.headers.get("Content-Type")
+          let errorMessage = `Failed to generate ${feedType} posts. Status: ${response.status}`
+
+          if (contentType && contentType.includes("application/json")) {
+            try {
+              const errorResponse = await response.json()
+              errorMessage = errorResponse.error || errorResponse.suggestion || errorMessage
+            } catch (jsonParseError) {
+              console.error("Failed to parse JSON error response:", jsonParseError)
+              errorMessage = `Server returned non-JSON error: ${await response.text()}`
+            }
+          } else {
+            errorMessage = `Server returned non-JSON error: ${await response.text()}`
+          }
+          throw new Error(errorMessage)
         }
         const data = await response.json()
         setPosts(data)

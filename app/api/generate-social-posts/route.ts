@@ -136,6 +136,7 @@ export async function GET(request: Request) {
     })
 
     const rawAiResponse = text.trim()
+    console.log("Raw AI response before JSON parsing:", rawAiResponse) // Added for debugging
 
     // Robust JSON extraction: find the first '[' and last ']' for an array
     const jsonStartIndex = rawAiResponse.indexOf("[")
