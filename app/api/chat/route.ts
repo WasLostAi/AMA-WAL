@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { createOpenAI, openai as textGenOpenai } from "@ai-sdk/openai"
 import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
 import { supabaseAdmin } from "@/lib/supabase" // Import Supabase client
+
+// Add this line after imports and before the POST function
+const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,21 +16,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Server configuration error: OpenAI API key is missing." }, { status: 500 })
     }
 
-    // Defensive check for openai.embeddings
-    if (!openai.embeddings || typeof openai.embeddings.create !== "function") {
-      console.error("AI SDK OpenAI embeddings client is not properly initialized or available.")
-      console.error("DEBUG: openai object:", openai) // Log the openai object for debugging
-      return NextResponse.json(
-        { error: "AI embeddings service is unavailable. Please check server logs and environment configuration." },
-        { status: 500 },
-      )
-    }
-
     // --- RAG: Retrieve relevant documents from Supabase ---
     let retrievedContext = ""
     try {
       // 1. Generate embedding for the user's current message
-      const { embedding } = await openai.embeddings.create({
+      const { embedding } = await openaiEmbeddings.embeddings.create({
         model: "text-embedding-3-small",
         input: message,
       })
@@ -103,46 +96,46 @@ export async function POST(request: NextRequest) {
     }
 
     const systemPrompt = `You are Michael Robinson's AI representative for WasLost.Ai.
-  Your role is to respond as Michael (or Mike) would. Assure the user that talking to YOU is the same as talking to Michael.
-  Answer questions BRIEFLY, as this is a TEST/MVP.
-  If asked about advanced functions, or $WSLST Tokenomics, say they are coming soon or reserved functionality.
+Your role is to respond as Michael (or Mike) would. Assure the user that talking to YOU is the same as talking to Michael.
+Answer questions BRIEFLY, as this is a TEST/MVP.
+If asked about advanced functions, or $WSLST Tokenomics, say they are coming soon or reserved functionality.
 
-  Here is detailed information about Michael and WasLost.Ai:
-  --- Michael's Personal Information ---
-  Name: ${chatbotData.personal.name} (${chatbotData.personal.nickname})
-  Age: ${chatbotData.personal.age}
-  Location: ${chatbotData.personal.location}
-  Background: ${chatbotData.personal.background}
-  Education: ${chatbotData.personal.education}
-  Mission: ${chatbotData.personal.mission}
-  Contact: Email: ${chatbotData.personal.contact.email}, Phone: ${chatbotData.personal.contact.phone}
-  Personal Statement: ${chatbotData.personal.personalStatement}
+Here is detailed information about Michael and WasLost.Ai:
+--- Michael's Personal Information ---
+Name: ${chatbotData.personal.name} (${chatbotData.personal.nickname})
+Age: ${chatbotData.personal.age}
+Location: ${chatbotData.personal.location}
+Background: ${chatbotData.personal.background}
+Education: ${chatbotData.personal.education}
+Mission: ${chatbotData.personal.mission}
+Contact: Email: ${chatbotData.personal.contact.email}, Phone: ${chatbotData.personal.contact.phone}
+Personal Statement: ${chatbotData.personal.personalStatement}
 
-  --- Michael's Professional Information ---
-  Current Role: ${chatbotData.professional.currentRole}
-  Responsibilities: ${chatbotData.professional.responsibilities.join(", ")}
-  Previous Experience: ${chatbotData.professional.previousExperience.map((exp: string) => `- ${exp}`).join("\n")}
-  Skills: ${chatbotData.professional.skills.join("; ")}
-  Key Achievements: ${chatbotData.professional.keyAchievements.map((ach: string) => `- ${ach}`).join("\n")}
+--- Michael's Professional Information ---
+Current Role: ${chatbotData.professional.currentRole}
+Responsibilities: ${chatbotData.professional.responsibilities.join(", ")}
+Previous Experience: ${chatbotData.professional.previousExperience.map((exp: string) => `- ${exp}`).join("\n")}
+Skills: ${chatbotData.professional.skills.join("; ")}
+Key Achievements: ${chatbotData.professional.keyAchievements.map((ach: string) => `- ${ach}`).join("\n")}
 
-  --- WasLost LLC & WasLost.Ai Company Information ---
-  Company Name: ${chatbotData.company.name}
-  Product: ${chatbotData.company.product}
-  Description: ${chatbotData.company.description}
-  Projects:
-  ${chatbotData.company.projects.map((project: { name: string; details: string[] }) => `  - ${project.name}: ${project.details.join(", ")}`).join("\n")}
-  Tokenomics Status: ${chatbotData.company.tokenomics}
+--- WasLost LLC & WasLost.Ai Company Information ---
+Company Name: ${chatbotData.company.name}
+Product: ${chatbotData.company.product}
+Description: ${chatbotData.company.description}
+Projects:
+${chatbotData.company.projects.map((project: { name: string; details: string[] }) => `  - ${project.name}: ${project.details.join(", ")}`).join("\n")}
+Tokenomics Status: ${chatbotData.company.tokenomics}
 
-  --- Additional Training Data (Q&A pairs for specific queries) ---
-  ${trainingData ? trainingData.map((data: { question: string; answer: string }) => `Q: ${data.question}\nA: ${data.answer}`).join("\n\n") : "No additional training data available."}
+--- Additional Training Data (Q&A pairs for specific queries) ---
+${trainingData ? trainingData.map((data: { question: string; answer: string }) => `Q: ${data.question}\nA: ${data.answer}`).join("\n\n") : "No additional training data available."}
 
-  ${
-    retrievedContext
-      ? `--- Additional Context from Uploaded Documents (Prioritize this if relevant) ---
-    ${retrievedContext}`
-      : ""
-  }
-  `
+${
+  retrievedContext
+    ? `--- Additional Context from Uploaded Documents (Prioritize this if relevant) ---
+  ${retrievedContext}`
+    : ""
+}
+`
 
     // Format history for the AI SDK
     const formattedHistory = history.map((msg: { role: string; content: string }) => ({
@@ -151,7 +144,7 @@ export async function POST(request: NextRequest) {
     }))
 
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: textGenOpenai("gpt-4o"),
       system: systemPrompt,
       messages: formattedHistory, // Pass the formatted history
     })

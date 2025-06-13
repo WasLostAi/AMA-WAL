@@ -3,7 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabase"
 import { revalidatePath } from "next/cache"
 import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
+import { createOpenAI, openai as textGenOpenai } from "@ai-sdk/openai"
 import slugify from "slugify" // Will need to infer this module
 
 interface BlogPost {
@@ -44,6 +44,8 @@ async function fetchCurrentMetadata(): Promise<AllFileMetadata> {
   return { files: [] }
 }
 
+const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+
 export async function generateBlogPost(
   prevState: any,
   formData: FormData,
@@ -65,16 +67,6 @@ export async function generateBlogPost(
   if (!process.env.OPENAI_API_KEY) {
     console.error("OPENAI_API_KEY environment variable is not set.")
     return { success: false, message: "Server configuration error: OpenAI API key is missing." }
-  }
-
-  // Defensive check for openai.embeddings
-  if (!openai.embeddings || typeof openai.embeddings.create !== "function") {
-    console.error("AI SDK OpenAI embeddings client is not properly initialized or available.")
-    console.error("DEBUG: openai object:", openai) // Log the openai object for debugging
-    return {
-      success: false,
-      message: "AI embeddings service is unavailable. Please check server logs and environment configuration.",
-    }
   }
 
   let ragContext = ""
@@ -111,7 +103,7 @@ export async function generateBlogPost(
 
     // Fallback to embedding search if no context from tags or no tags were selected
     if (!ragContext) {
-      const { embedding } = await openai.embeddings.create({
+      const { embedding } = await openaiEmbeddings.embeddings.create({
         model: "text-embedding-3-small",
         input: topic,
       })
@@ -137,26 +129,26 @@ export async function generateBlogPost(
   }
 
   const systemPrompt = `You are an expert blog post writer for WasLost.Ai.
-  Generate a professional, engaging, and informative blog post based on the user's provided topic and any additional context.
-  The blog post should be written in Markdown format.
-  Include a compelling title, and suggest 3-5 keywords (comma-separated, lowercase, kebab-case) and a concise meta description (max 160 characters).
-  The content should reflect expertise in AI, Web3, decentralized applications, and trading automation, aligning with WasLost.Ai's mission.
-  If RAG context is provided, integrate it naturally and use it to enhance the depth and accuracy of the post.
-  If no relevant RAG context is found, generate content based on general knowledge of the topic and WasLost.Ai's profile.
-  Ensure the response is a JSON object with 'title', 'content', 'keywords' (array of strings), and 'meta_description' fields.
-  Do NOT include any introductory or concluding text outside the JSON.
-  `
+Generate a professional, engaging, and informative blog post based on the user's provided topic and any additional context.
+The blog post should be written in Markdown format.
+Include a compelling title, and suggest 3-5 keywords (comma-separated, lowercase, kebab-case) and a concise meta description (max 160 characters).
+The content should reflect expertise in AI, Web3, decentralized applications, and trading automation, aligning with WasLost.Ai's mission.
+If RAG context is provided, integrate it naturally and use it to enhance the depth and accuracy of the post.
+If no relevant RAG context is found, generate content based on general knowledge of the topic and WasLost.Ai's profile.
+Ensure the response is a JSON object with 'title', 'content', 'keywords' (array of strings), and 'meta_description' fields.
+Do NOT include any introductory or concluding text outside the JSON.
+`
 
   const userPrompt = `Generate a blog post about: "${topic}".
-  ${ragContext ? `Here is additional context from relevant documents:\n\n${ragContext}\n\n` : ""}
-  Remember to provide the output as a JSON object containing 'title', 'content' (in Markdown), 'keywords' (array), and 'meta_description'.`
+${ragContext ? `Here is additional context from relevant documents:\n\n${ragContext}\n\n` : ""}
+Remember to provide the output as a JSON object containing 'title', 'content' (in Markdown), 'keywords' (array), and 'meta_description'.`
 
   let rawAiResponse: string | undefined
   let extractedJsonString: string | undefined
 
   try {
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: textGenOpenai("gpt-4o"),
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0.7, // A bit creative
