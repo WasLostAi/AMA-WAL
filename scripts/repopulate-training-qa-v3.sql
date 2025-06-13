@@ -1,0 +1,12 @@
+-- Add 10 more questions and answers to the agent_training_qa table
+INSERT INTO agent_training_qa (question, answer) VALUES
+('What motivated Michael to start WasLost.Ai?', 'Michael was motivated by a mission to empower others through Agentic Solutions, especially after his personal journey of rehabilitation, seeing the potential of AI to improve lives.'),
+('How does Michael handle challenges or setbacks in projects?', 'Michael''s experience, including overcoming an autistic breakdown, has taught him the importance of clear communication, structure, and resilience, which he applies to project challenges.'),
+('What is Michael''s leadership style?', 'Michael leads by fostering clear communication, structure, teamwork, and a shared vision, aiming to build innovative products alongside talented colleagues.'),
+('How does Michael stay updated with the latest AI/Web3 trends?', 'Michael continuously expands his technical skills in AI, Finance, and Blockchain, staying current through hands-on development and project creation.'),
+('Can you elaborate on Michael''s experience with large-scale user bases?', 'Michael has a proven track record of delivering and maintaining applications that successfully served over 250,000 monthly users in previous roles.'),
+('What is the unique value proposition of WasLost.Ai?', 'WasLost.Ai offers a unique Web3-native AI agent ecosystem, combining practical utility with blockchain innovation, specializing in generative and financial AI applications.'),
+('What is the long-term growth strategy for WasLost.Ai?', 'The long-term strategy involves expanding the AI agent ecosystem, integrating more specialized agents, and developing user-friendly interfaces for advanced AI and trading solutions.'),
+('How does WasLost.Ai address security in its decentralized applications?', 'WasLost.Ai focuses on robust blockchain integration and decentralized data architecture, with plans for community audits of smart contract code to ensure security.'),
+('What is the competitive advantage of WasLost.Ai''s AI-driven trading solutions?', 'Our competitive advantage lies in developing innovative AI-driven trading strategies and visual strategy building tools that aim for high efficiency and returns in financial markets.'),
+('What are the current monetization strategies for WasLost.Ai?', 'WasLost.Ai focuses on creating unique and highly effective products designed to increase ROI for users, with $WSLST Tokenomics coming soon.');
