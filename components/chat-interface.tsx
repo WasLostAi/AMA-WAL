@@ -19,8 +19,9 @@ export function ChatInterface() {
   const [isTypingInitial, setIsTypingInitial] = useState(true)
   const [displayedInitialText, setDisplayedInitialText] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]) // Now dynamic
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0)
-  const [showSuggestionsInInput, setShowSuggestionsInInput] = useState(false) // New state for input suggestions
+  const [showSuggestionsInInput, setShowSuggestionsInInput] = useState(false)
 
   const initialGreeting =
     "Hello, I'm Michael Robinson's AI representative. I'm here to provide insights into his professional background and the innovative work at WasLost.Ai. How can I assist you?"
@@ -29,16 +30,7 @@ export function ChatInterface() {
   const suggestionIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const suggestedQuestions = [
-    "What are the latest trends in AI agent development?",
-    "How can decentralized applications impact future markets?",
-    "Tell me about innovative approaches to automated trading.",
-    "What's the vision behind WasLost.Ai's ecosystem?",
-    "How does AI integrate with blockchain technology?",
-    "What kind of solutions does WasLost.Ai offer for financial strategies?",
-    "Where can I learn more about the team's expertise?",
-  ]
-
+  // Effect for initial greeting typing animation
   useEffect(() => {
     let i = 0
     setIsTypingInitial(true)
@@ -60,9 +52,34 @@ export function ChatInterface() {
     }
   }, [])
 
+  // Effect to fetch suggested questions from API
   useEffect(() => {
-    if (showSuggestionsInInput && !inputValue) {
-      // Only cycle if input is empty
+    const fetchSuggestions = async () => {
+      try {
+        const response = await fetch("/api/suggested-questions")
+        if (!response.ok) {
+          throw new Error(`Failed to fetch suggested questions: ${response.statusText}`)
+        }
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          setSuggestedQuestions(data)
+        } else {
+          console.error("API returned unexpected format for suggested questions:", data)
+          setSuggestedQuestions([])
+        }
+      } catch (error) {
+        console.error("Error fetching suggested questions:", error)
+        setSuggestedQuestions([]) // Fallback to empty array on error
+      }
+    }
+
+    fetchSuggestions()
+  }, []) // Run once on component mount
+
+  // Effect for cycling through suggested questions in input placeholder
+  useEffect(() => {
+    if (showSuggestionsInInput && !inputValue && suggestedQuestions.length > 0) {
+      // Only cycle if input is empty and we have suggestions
       suggestionIntervalRef.current = setInterval(() => {
         setCurrentSuggestionIndex((prevIndex) => (prevIndex + 1) % suggestedQuestions.length)
       }, 5000) // Change suggestion every 5 seconds
@@ -72,8 +89,9 @@ export function ChatInterface() {
     return () => {
       if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current)
     }
-  }, [showSuggestionsInInput, inputValue, suggestedQuestions.length])
+  }, [showSuggestionsInInput, inputValue, suggestedQuestions.length, suggestedQuestions])
 
+  // Effect to scroll to the latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, isLoading])
@@ -120,11 +138,16 @@ export function ChatInterface() {
   }
 
   const handleInputClick = () => {
-    if (!inputValue && showSuggestionsInInput && !isLoading && !isTypingInitial) {
+    if (!inputValue && showSuggestionsInInput && !isLoading && !isTypingInitial && suggestedQuestions.length > 0) {
       setInputValue(suggestedQuestions[currentSuggestionIndex])
       if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current) // Stop cycling when filled
     }
   }
+
+  const currentPlaceholder =
+    showSuggestionsInInput && !isLoading && !isTypingInitial && !inputValue && suggestedQuestions.length > 0
+      ? suggestedQuestions[currentSuggestionIndex]
+      : "Ask me about WasLost.Ai or Michael..."
 
   return (
     <div className="w-full max-w-3xl mx-auto fade-in">
@@ -170,11 +193,7 @@ export function ChatInterface() {
               if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current)
             }}
             onClick={handleInputClick} // Handle click to fill input
-            placeholder={
-              showSuggestionsInInput && !isLoading && !isTypingInitial && !inputValue
-                ? suggestedQuestions[currentSuggestionIndex]
-                : "Ask me about WasLost.Ai or Michael..."
-            }
+            placeholder={currentPlaceholder}
             className="flex-1 px-3 py-2"
             disabled={isLoading || isTypingInitial}
           />
