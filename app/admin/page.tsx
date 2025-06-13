@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useMemo, useCallback, startTransition, useRef } from "react" // Import startTransition
+import { useState, useEffect, useMemo, useCallback } from "react" // Import startTransition
 import { useActionState } from "react"
 import { useRouter } from "next/navigation"
 import { useWallet } from "@solana/wallet-adapter-react"
@@ -16,7 +16,6 @@ import {
   SaveIcon,
   Trash2Icon,
   FileTextIcon,
-  SearchIcon,
   PlusIcon,
   UploadCloudIcon,
   ImageIcon,
@@ -24,10 +23,9 @@ import {
   ChevronDownIcon,
 } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-// Import the new RichTextEditor
-import RichTextEditor from "@/components/rich-text-editor"
+// Removed RichTextEditor import
+//- import RichTextEditor from "@/components/rich-text-editor"
 
 // Import all necessary server actions
 import { saveSocialPostsMarkdown } from "./content-manager/social-post-actions"
@@ -41,10 +39,9 @@ import {
   updateTrainingQA, // New import
   deleteTrainingQA,
 } from "./agent-manager/agent-actions"
-import { generateBlogPost, saveBlogPost, getBlogPosts, deleteBlogPost } from "./blog-manager/blog-actions"
+// Removed blog-manager imports
+//- import { generateBlogPost, saveBlogPost, getBlogPosts, deleteBlogPost } from "./blog-manager/blog-actions"
 import { initialProjectUpdatesMarkdown } from "@/lib/current-projects" // For social post editor default
-import { uploadBlogImage } from "./blog-manager/blog-image-actions" // New import
-import { resizeImage } from "@/lib/image-processing" // Import client-side image resizer
 
 interface FileMetadata {
   fileName: string
@@ -72,18 +69,19 @@ interface TrainingQA {
   answer: string
 }
 
-interface BlogPost {
-  id: string
-  title: string
-  slug: string
-  content: string
-  keywords: string[] | null
-  meta_description: string | null
-  status: "draft" | "published"
-  generated_at: string
-  updated_at: string
-  featured_image_url: string | null // Add this line
-}
+// Removed BlogPost interface
+//- interface BlogPost {
+//-   id: string
+//-   title: string
+//-   slug: string
+//-   content: string
+//-   keywords: string[] | null // Optional keywords
+//-   meta_description: string | null // Optional meta description
+//-   status: "draft" | "published"
+//-   generated_at: string
+//-   updated_at: string
+//-   featured_image_url: string | null // New field
+//- }
 
 export default function AdminPage() {
   const router = useRouter()
@@ -140,38 +138,38 @@ export default function AdminPage() {
   })
   const [isFetchingQAs, setIsFetchingQAs] = useState(true)
 
-  // --- Blog Post Generation State ---
-  const [topic, setTopic] = useState("")
-  const [generatedTitle, setGeneratedTitle] = useState("")
-  const [generatedContent, setGeneratedContent] = useState("")
-  const [generatedKeywords, setGeneratedKeywords] = useState<string[]>([])
-  const [generatedMetaDescription, setGeneratedMetaDescription] = useState("")
-  const [selectedTagsForGeneration, setSelectedTagsForGeneration] = useState<string[]>([])
-  const [availableRAGTags, setAvailableRAGTags] = useState<string[]>([]) // Tags from uploaded RAG files
-  const [postStatus, setPostStatus] = useState<"draft" | "published">("draft") // New state for blog post status
-  const [featuredImageFile, setFeaturedImageFile] = useState<File | null>(null)
-  const [featuredImageUrl, setFeaturedImageUrl] = useState<string | null>(null) // URL of the uploaded/resized image
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const featuredImageInputRef = useRef<HTMLInputElement>(null) // Ref for file input
+  // Removed all blog post generation and saving states
+  //- const [topic, setTopic] = useState("")
+  //- const [generatedTitle, setGeneratedTitle] = useState("")
+  //- const [generatedContent, setGeneratedContent] = useState("")
+  //- const [generatedKeywords, setGeneratedKeywords] = useState<string[]>([])
+  //- const [generatedMetaDescription, setGeneratedMetaDescription] = useState("")
+  //- const [selectedTagsForGeneration, setSelectedTagsForGeneration] = useState<string[]>([])
+  //- const [availableRAGTags, setAvailableRAGTags] = useState<string[]>([]) // Tags from uploaded RAG files
+  //- const [postStatus, setPostStatus] = useState<"draft" | "published">("draft") // New state for blog post status
+  //- const [featuredImageFile, setFeaturedImageFile] = useState<File | null>(null)
+  //- const [featuredImageUrl, setFeaturedImageUrl] = useState<string | null>(null) // URL of the uploaded/resized image
+  //- const [isUploadingImage, setIsUploadingImage] = useState(false)
+  //- const featuredImageInputRef = useRef<HTMLInputElement>(null) // Ref for file input
 
-  const [generateState, generateFormAction, isGenerating] = useActionState(generateBlogPost, {
-    success: false,
-    message: "",
-    generatedContent: "",
-    generatedTitle: "",
-    generatedKeywords: [],
-    generatedMetaDescription: "",
-  })
+  //- const [generateState, generateFormAction, isGenerating] = useActionState(generateBlogPost, {
+  //-   success: false,
+  //-   message: "",
+  //-   generatedContent: "",
+  //-   generatedTitle: "",
+  //-   generatedKeywords: [],
+  //-   generatedMetaDescription: "",
+  //- })
 
-  // Blog Post Saving/Listing State
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
-  const [isFetchingPosts, setIsFetchingPosts] = useState(true)
-  const [saveState, saveFormAction, isSaving] = useActionState(saveBlogPost, {
-    success: false,
-    message: "",
-  })
+  // Removed Blog Post Saving/Listing State
+  //- const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  //- const [isFetchingPosts, setIsFetchingPosts] = useState(true)
+  //- const [saveState, saveFormAction, isSaving] = useActionState(saveBlogPost, {
+  //-   success: false,
+  //-   message: "",
+  //- })
 
-  const [editingPostId, setEditingPostId] = useState<string | null>(null) // For editing existing posts
+  //- const [editingPostId, setEditingPostId] = useState<string | null>(null) // For editing existing posts
 
   // --- Authorization Effect ---
   useEffect(() => {
@@ -229,24 +227,25 @@ export default function AdminPage() {
     setIsFetchingQAs(false)
   }, [])
 
-  const fetchBlogData = useCallback(async () => {
-    setIsFetchingPosts(true)
-    try {
-      const metadata = await getFileMetadata() // For RAG tags
-      setAvailableRAGTags(Array.from(new Set(metadata.files.flatMap((f: FileMetadata) => f.tags))))
+  // Removed fetchBlogData callback
+  //- const fetchBlogData = useCallback(async () => {
+  //-   setIsFetchingPosts(true)
+  //-   try {
+  //-     const metadata = await getFileMetadata() // For RAG tags
+  //-     setAvailableRAGTags(Array.from(new Set(metadata.files.flatMap((f: FileMetadata) => f.tags))))
 
-      const { data: postsData, message: postsMessage } = await getBlogPosts()
-      if (postsData) {
-        setBlogPosts(postsData)
-      } else {
-        console.error(postsMessage || "Failed to fetch blog posts.")
-      }
-    } catch (error) {
-      console.error("Error fetching initial blog data:", error)
-    } finally {
-      setIsFetchingPosts(false)
-    }
-  }, [])
+  //-     const { data: postsData, message: postsMessage } = await getBlogPosts()
+  //-     if (postsData) {
+  //-       setBlogPosts(postsData)
+  //-     } else {
+  //-       console.error(postsMessage || "Failed to fetch blog posts.")
+  //-     }
+  //-   } catch (error) {
+  //-     console.error("Error fetching initial blog data:", error)
+  //-   } finally {
+  //-     setIsFetchingPosts(false)
+  //-   }
+  //- }, [])
 
   // --- Initial Data Fetching Effect ---
   useEffect(() => {
@@ -254,9 +253,10 @@ export default function AdminPage() {
       fetchFileMetadata()
       fetchAgentProfile()
       fetchTrainingQAs()
-      fetchBlogData()
+      // Removed fetchBlogData call
+      //- fetchBlogData()
     }
-  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs, fetchBlogData])
+  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs]) // Removed fetchBlogData from dependencies
 
   // --- Action State Effects (for alerts) ---
   useEffect(() => {
@@ -298,35 +298,37 @@ export default function AdminPage() {
     }
   }, [updateQAState, fetchTrainingQAs])
 
-  useEffect(() => {
-    if (generateState.message) {
-      alert(generateState.message)
-      if (generateState.success) {
-        setGeneratedTitle(generateState.generatedTitle || "")
-        setGeneratedContent(generateState.generatedContent || "")
-        setGeneratedKeywords(generateState.generatedKeywords || [])
-        setGeneratedMetaDescription(generateState.generatedMetaDescription || "")
-      }
-    }
-  }, [generateState])
+  // Removed generateState effect
+  //- useEffect(() => {
+  //-   if (generateState.message) {
+  //-     alert(generateState.message)
+  //-     if (generateState.success) {
+  //-       setGeneratedTitle(generateState.generatedTitle || "")
+  //-       setGeneratedContent(generateState.generatedContent || "")
+  //-       setGeneratedKeywords(generateState.generatedKeywords || [])
+  //-       setGeneratedMetaDescription(generateState.generatedMetaDescription || "")
+  //-     }
+  //-   }
+  //- }, [generateState])
 
-  useEffect(() => {
-    if (saveState.message) {
-      alert(saveState.message)
-      if (saveState.success) {
-        if (!editingPostId) {
-          setGeneratedTitle("")
-          setGeneratedContent("")
-          setGeneratedKeywords([])
-          setGeneratedMetaDescription("")
-          setTopic("")
-          setSelectedTagsForGeneration([])
-        }
-        setEditingPostId(null)
-        fetchBlogData() // Refresh list of posts
-      }
-    }
-  }, [saveState, editingPostId, fetchBlogData])
+  // Removed saveState effect
+  //- useEffect(() => {
+  //-   if (saveState.message) {
+  //-     alert(saveState.message)
+  //-     if (saveState.success) {
+  //-       if (!editingPostId) {
+  //-         setGeneratedTitle("")
+  //-         setGeneratedContent("")
+  //-         setGeneratedKeywords([])
+  //-         setGeneratedMetaDescription("")
+  //-         setTopic("")
+  //-         setSelectedTagsForGeneration([])
+  //-       }
+  //-       setEditingPostId(null)
+  //-       fetchBlogData() // Refresh list of posts
+  //-     }
+  //-   }
+  //- }, [saveState, editingPostId, fetchBlogData])
 
   // --- File Upload Handlers ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -422,7 +424,8 @@ export default function AdminPage() {
       setSelectedFiles([])
       setFileTagInput("")
       fetchFileMetadata() // Refresh the list of uploaded files
-      fetchBlogData() // Also refresh blog data to update RAG tags
+      // Removed fetchBlogData call
+      //- fetchBlogData() // Also refresh blog data to update RAG tags
     } else {
       alert("Some files failed to upload. Check console for details.")
     }
@@ -435,7 +438,8 @@ export default function AdminPage() {
         if (result.success) {
           alert(result.message)
           fetchFileMetadata() // Refresh the list
-          fetchBlogData() // Also refresh blog data to update RAG tags
+          // Removed fetchBlogData call
+          //- fetchBlogData() // Also refresh blog data to update RAG tags
         } else {
           alert(result.message)
         }
@@ -511,113 +515,112 @@ export default function AdminPage() {
     )
   }, [trainingQAs, qaFilterQuery])
 
-  // --- Blog Post Handlers ---
-  // Removed handleGeneratePost function, as generateFormAction will be passed directly to form action prop
+  // Removed all blog post handlers
+  //- const handleFeaturedImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //-   const file = e.target.files?.[0]
+  //-   if (file && file.type.startsWith("image/")) {
+  //-     setFeaturedImageFile(file)
+  //-     setFeaturedImageUrl(URL.createObjectURL(file)) // Show local preview immediately
+  //-   } else {
+  //-     setFeaturedImageFile(null)
+  //-     setFeaturedImageUrl(null)
+  //-     alert("Please select an image file (PNG, JPEG, GIF).")
+  //-   }
+  //- }
 
-  const handleFeaturedImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file && file.type.startsWith("image/")) {
-      setFeaturedImageFile(file)
-      setFeaturedImageUrl(URL.createObjectURL(file)) // Show local preview immediately
-    } else {
-      setFeaturedImageFile(null)
-      setFeaturedImageUrl(null)
-      alert("Please select an image file (PNG, JPEG, GIF).")
-    }
-  }
+  //- const handleUploadFeaturedImage = async () => {
+  //-   if (!featuredImageFile) {
+  //-     alert("No image selected for upload.")
+  //-     return
+  //-   }
 
-  const handleUploadFeaturedImage = async () => {
-    if (!featuredImageFile) {
-      alert("No image selected for upload.")
-      return
-    }
+  //-   setIsUploadingImage(true)
+  //-   try {
+  //-     // Client-side resize before upload
+  //-     const resizedBlob = await resizeImage(featuredImageFile, { maxWidth: 1200, maxHeight: 630, quality: 0.8 }) // Common blog image dimensions
+  //-     if (!resizedBlob) {
+  //-       throw new Error("Image resizing failed.")
+  //-     }
 
-    setIsUploadingImage(true)
-    try {
-      // Client-side resize before upload
-      const resizedBlob = await resizeImage(featuredImageFile, { maxWidth: 1200, maxHeight: 630, quality: 0.8 }) // Common blog image dimensions
-      if (!resizedBlob) {
-        throw new Error("Image resizing failed.")
-      }
+  //-     const formData = new FormData()
+  //-     formData.append("file", resizedBlob, featuredImageFile.name) // Append the resized blob
 
-      const formData = new FormData()
-      formData.append("file", resizedBlob, featuredImageFile.name) // Append the resized blob
+  //-     const result = await uploadBlogImage(null, formData)
+  //-     if (result.success && result.imageUrl) {
+  //-       setFeaturedImageUrl(result.imageUrl) // Set the actual Blob URL
+  //-       alert(result.message)
+  //-     } else {
+  //-       alert(result.message)
+  //-     }
+  //-   } catch (error) {
+  //-     console.error("Error uploading featured image:", error)
+  //-     alert(`Failed to upload featured image: ${error instanceof Error ? error.message : String(error)}`)
+  //-   } finally {
+  //-     setIsUploadingImage(false)
+  //-   }
+  //- }
 
-      const result = await uploadBlogImage(null, formData)
-      if (result.success && result.imageUrl) {
-        setFeaturedImageUrl(result.imageUrl) // Set the actual Blob URL
-        alert(result.message)
-      } else {
-        alert(result.message)
-      }
-    } catch (error) {
-      console.error("Error uploading featured image:", error)
-      alert(`Failed to upload featured image: ${error instanceof Error ? error.message : String(error)}`)
-    } finally {
-      setIsUploadingImage(false)
-    }
-  }
+  //- const handleSavePost = (e: React.FormEvent) => {
+  //-   e.preventDefault()
+  //-   const formData = new FormData()
+  //-   if (editingPostId) {
+  //-     formData.append("id", editingPostId)
+  //-   }
+  //-   formData.append("title", generatedTitle)
+  //-   formData.append("content", generatedContent) // This is now Markdown from the editor
+  //-   formData.append("keywords", generatedKeywords.join(", "))
+  //-   formData.append("metaDescription", generatedMetaDescription)
+  //-   formData.append("status", postStatus) // Use the new state here
+  //-   if (featuredImageUrl) {
+  //-     formData.append("featuredImageUrl", featuredImageUrl) // Add featured image URL
+  //-   }
 
-  const handleSavePost = (e: React.FormEvent) => {
-    e.preventDefault()
-    const formData = new FormData()
-    if (editingPostId) {
-      formData.append("id", editingPostId)
-    }
-    formData.append("title", generatedTitle)
-    formData.append("content", generatedContent) // This is now Markdown from the editor
-    formData.append("keywords", generatedKeywords.join(", "))
-    formData.append("metaDescription", generatedMetaDescription)
-    formData.append("status", postStatus) // Use the new state here
-    if (featuredImageUrl) {
-      formData.append("featuredImageUrl", featuredImageUrl) // Add featured image URL
-    }
+  //-   // Wrap the action call in startTransition
+  //-   startTransition(() => {
+  //-     saveFormAction(formData)
+  //-   })
+  //- }
 
-    // Wrap the action call in startTransition
-    startTransition(() => {
-      saveFormAction(formData)
-    })
-  }
+  //- const handleEditPost = (post: BlogPost) => {
+  //-   setEditingPostId(post.id)
+  //-   setGeneratedTitle(post.title)
+  //-   setGeneratedContent(post.content) // This will be Markdown
+  //-   setGeneratedKeywords(post.keywords || [])
+  //-   setGeneratedMetaDescription(post.meta_description || "")
+  //-   setPostStatus(post.status) // Set the status when editing
+  //-   setFeaturedImageUrl(post.featured_image_url) // Set featured image URL when editing
+  //-   setFeaturedImageFile(null) // Clear file input for new upload
+  //-   setTopic("")
+  //-   setSelectedTagsForGeneration([])
+  //-   window.scrollTo({ top: 0, behavior: "smooth" })
+  //- }
 
-  const handleEditPost = (post: BlogPost) => {
-    setEditingPostId(post.id)
-    setGeneratedTitle(post.title)
-    setGeneratedContent(post.content) // This will be Markdown
-    setGeneratedKeywords(post.keywords || [])
-    setGeneratedMetaDescription(post.meta_description || "")
-    setPostStatus(post.status) // Set the status when editing
-    setFeaturedImageUrl(post.featured_image_url) // Set featured image URL when editing
-    setFeaturedImageFile(null) // Clear file input for new upload
-    setTopic("")
-    setSelectedTagsForGeneration([])
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
+  //- const handleDeletePost = async (id: string) => {
+  //-   if (confirm("Are you sure you want to delete this blog post?")) {
+  //-     const { success, message } = await deleteBlogPost(id)
+  //-     alert(message)
+  //-     if (success) {
+  //-       fetchBlogData() // Refresh list
+  //-     }
+  //-   }
+  //- }
 
-  const handleDeletePost = async (id: string) => {
-    if (confirm("Are you sure you want to delete this blog post?")) {
-      const { success, message } = await deleteBlogPost(id)
-      alert(message)
-      if (success) {
-        fetchBlogData() // Refresh list
-      }
-    }
-  }
-
-  const handleTagSelection = (tag: string) => {
-    setSelectedTagsForGeneration((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
-  }
+  //- const handleTagSelection = (tag: string) => {
+  //-   setSelectedTagsForGeneration((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
+  //- }
 
   // --- Authorization Check ---
   useEffect(() => {
-    if (editingPostId) {
-      const postToEdit = blogPosts.find((p) => p.id === editingPostId)
-      if (postToEdit) {
-        setPostStatus(postToEdit.status)
-      }
-    } else {
-      setPostStatus("draft") // Default to draft for new posts
-    }
-  }, [editingPostId, blogPosts])
+    // Removed blog post status logic
+    //- if (editingPostId) {
+    //-   const postToEdit = blogPosts.find((p) => p.id === editingPostId)
+    //-   if (postToEdit) {
+    //-     setPostStatus(postToEdit.status)
+    //-   }
+    //- } else {
+    //-   setPostStatus("draft") // Default to draft for new posts
+    //- }
+  }, []) // Removed dependencies
 
   if (!connected || !isAuthorized) {
     return (
@@ -719,7 +722,7 @@ export default function AdminPage() {
             )}
 
             <div className="space-y-2 mt-4">
-              <Label htmlFor="file-tag" className="block text-sm font-medium text-muted-foreground">
+              <Label htmlFor="file-tag" className="block text-sm font-medium text-muted-foreground mb-1">
                 Tags (comma-separated)
               </Label>
               <div className="flex gap-2">
@@ -1038,285 +1041,8 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        {/* Blog Post Generation Card */}
-        <Card className="w-full jupiter-outer-panel p-6 mt-8">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">AI Blog Post Generator</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Generate a blog post by providing a topic and optionally selecting relevant RAG tags.
-            </p>
-            {/* Changed onSubmit to action and removed handleGeneratePost */}
-            <form action={generateFormAction} className="space-y-4">
-              <div>
-                <Label htmlFor="topic" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Blog Post Topic
-                </Label>
-                <Input
-                  id="topic"
-                  type="text"
-                  name="topic" // Added name attribute for FormData
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="e.g., The Future of Decentralized AI"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isGenerating}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Relevant RAG Tags (Optional)
-                </Label>
-                <div className="flex flex-wrap gap-2">
-                  {availableRAGTags.length === 0 && !isFetchingPosts ? (
-                    <span className="text-xs text-muted-foreground">
-                      No RAG tags available. Upload files with tags in Content Manager.
-                    </span>
-                  ) : (
-                    availableRAGTags.map((tag) => (
-                      <Button
-                        key={tag}
-                        type="button"
-                        variant={selectedTagsForGeneration.includes(tag) ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleTagSelection(tag)}
-                        className={`neumorphic-base text-sm px-3 py-1 rounded-full ${
-                          selectedTagsForGeneration.includes(tag)
-                            ? "bg-[#2ed3b7] text-black hover:bg-[#c7f284] hover:text-black"
-                            : "bg-neumorphic-light text-muted-foreground hover:bg-neumorphic-base"
-                        }`}
-                        disabled={isGenerating}
-                      >
-                        {tag}
-                      </Button>
-                    ))
-                  )}
-                </div>
-                {/* Hidden input to pass selectedTagsForGeneration to the server action */}
-                <input type="hidden" name="selectedTags" value={selectedTagsForGeneration.join(",")} />
-              </div>
-
-              <div className="space-y-2 mt-4">
-                <Label htmlFor="featured-image" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Featured Image (Optional)
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="featured-image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFeaturedImageChange}
-                    ref={featuredImageInputRef}
-                    className="flex-1 bg-neumorphic-base shadow-inner-neumorphic text-white"
-                    disabled={isUploadingImage || isSaving}
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleUploadFeaturedImage}
-                    className="jupiter-button-dark h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base flex items-center gap-2"
-                    disabled={!featuredImageFile || isUploadingImage || isSaving}
-                  >
-                    {isUploadingImage ? "Uploading..." : <UploadCloudIcon className="h-4 w-4" />}
-                  </Button>
-                </div>
-                {featuredImageUrl && (
-                  <div className="mt-2 text-center">
-                    <p className="text-sm text-muted-foreground mb-1">Current Featured Image:</p>
-                    <img
-                      src={featuredImageUrl || "/placeholder.svg"}
-                      alt="Featured Blog Post Image"
-                      className="max-w-full h-auto max-h-48 object-contain rounded-lg neumorphic-inset mx-auto"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setFeaturedImageUrl(null)
-                        setFeaturedImageFile(null)
-                        if (featuredImageInputRef.current) {
-                          featuredImageInputRef.current.value = "" // Clear file input
-                        }
-                      }}
-                      className="text-red-500 hover:bg-red-500/20 mt-2"
-                      disabled={isSaving}
-                    >
-                      Remove Image
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <Button
-                type="submit"
-                className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
-                disabled={isGenerating || !topic.trim()}
-              >
-                {isGenerating ? (
-                  "Generating..."
-                ) : (
-                  <>
-                    <SparklesIcon className="h-4 w-4 mr-2" /> GENERATE BLOG POST
-                  </>
-                )}
-              </Button>
-            </form>
-
-            {(generatedTitle || generatedContent) && (
-              <div className="mt-8 p-4 neumorphic-inset rounded-lg">
-                <h3 className="text-lg font-semibold text-white mb-2">Generated Content Preview</h3>
-                <Input
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white mb-2"
-                  value={generatedTitle}
-                  onChange={(e) => setGeneratedTitle(e.target.value)}
-                  placeholder="Generated Title"
-                  disabled={isSaving}
-                />
-                {/* Replaced Textarea with RichTextEditor */}
-                <RichTextEditor
-                  value={generatedContent || ""} // Ensure generatedContent is always a string
-                  onChange={setGeneratedContent}
-                  disabled={isSaving}
-                  placeholder="Generated Markdown Content"
-                />
-                <Input
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white mb-2"
-                  value={generatedKeywords.join(", ")}
-                  onChange={(e) => setGeneratedKeywords(e.target.value.split(",").map((k) => k.trim()))}
-                  placeholder="Generated Keywords (comma-separated)"
-                  disabled={isSaving}
-                />
-                <Textarea
-                  className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white mb-2"
-                  value={generatedMetaDescription}
-                  onChange={(e) => setGeneratedMetaDescription(e.target.value)}
-                  placeholder="Generated Meta Description (max 160 chars)"
-                  disabled={isSaving}
-                  maxLength={160}
-                />
-                <div>
-                  <Label htmlFor="post-status" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Status
-                  </Label>
-                  <Select
-                    value={postStatus}
-                    onValueChange={(value: "draft" | "published") => setPostStatus(value)}
-                    disabled={isSaving}
-                  >
-                    <SelectTrigger
-                      id="post-status"
-                      className="w-full bg-neumorphic-base shadow-inner-neumorphic text-white"
-                    >
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-neumorphic-base text-white">
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="published">Published</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  onClick={handleSavePost}
-                  className="jupiter-button-dark w-full h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base"
-                  disabled={isSaving || !generatedTitle.trim() || !generatedContent.trim()}
-                >
-                  {isSaving ? (
-                    "Saving..."
-                  ) : (
-                    <>
-                      <SaveIcon className="h-4 w-4 mr-2" /> {editingPostId ? "UPDATE POST" : "SAVE NEW POST"}
-                    </>
-                  )}
-                </Button>
-                {editingPostId && (
-                  <Button
-                    onClick={() => {
-                      setEditingPostId(null)
-                      setGeneratedTitle("")
-                      setGeneratedContent("")
-                      setGeneratedKeywords([])
-                      setGeneratedMetaDescription("")
-                      setFeaturedImageUrl(null) // Clear featured image URL
-                      setFeaturedImageFile(null) // Clear featured image file
-                      if (featuredImageInputRef.current) {
-                        featuredImageInputRef.current.value = "" // Clear file input
-                      }
-                    }}
-                    variant="ghost"
-                    className="w-full mt-2 text-muted-foreground hover:text-white"
-                  >
-                    Cancel Edit
-                  </Button>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Existing Blog Posts List */}
-        <Card className="w-full jupiter-outer-panel p-6 mt-8">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Existing Blog Posts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isFetchingPosts ? (
-              <p className="text-center text-muted-foreground">Loading blog posts...</p>
-            ) : blogPosts.length === 0 ? (
-              <p className="text-center text-muted-foreground">No blog posts generated yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {blogPosts.map((post) => (
-                  <div
-                    key={post.id}
-                    className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-white">{post.title}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Status:{" "}
-                        <span className={post.status === "published" ? "text-[#2ed3b7]" : "text-yellow-500"}>
-                          {post.status}
-                        </span>{" "}
-                        | Generated: {new Date(post.generated_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => router.push(`/blog/${post.slug}`)}
-                        className="text-muted-foreground hover:bg-muted-foreground/20"
-                        aria-label={`View blog post: ${post.title}`}
-                      >
-                        <SearchIcon className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditPost(post)}
-                        className="text-[#afcd4f] hover:bg-[#afcd4f]/20"
-                        aria-label={`Edit blog post: ${post.title}`}
-                      >
-                        <FileTextIcon className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeletePost(post.id)}
-                        className="text-red-500 hover:bg-red-500/20"
-                        aria-label={`Delete blog post: ${post.title}`}
-                      >
-                        <Trash2Icon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Removed Blog Post Generation Card */}
+        {/* Removed Existing Blog Posts List Card */}
 
         {/* Image Resizer Demo Card */}
       </div>
