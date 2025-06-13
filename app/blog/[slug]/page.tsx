@@ -50,6 +50,10 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       description: post.meta_description || `Read about ${post.title} on the WasLost.Ai blog.`,
       // Add Twitter image if available
     },
+    // Add JSON-LD structured data
+    alternates: {
+      canonical: `${process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000"}/blog/${post.slug}`,
+    },
   }
 }
 
@@ -65,8 +69,39 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const processedContent = await remark().use(html).process(post.content)
   const contentHtml = processedContent.toString()
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.meta_description || `A blog post from WasLost.Ai about ${post.title}.`,
+    image:
+      post.featured_image_url ||
+      `${process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000"}/placeholder.svg?height=630&width=1200&query=blog%20post%20default%20image`, // Use featured image or a default
+    datePublished: post.generated_at,
+    dateModified: post.updated_at,
+    author: {
+      "@type": "Person",
+      name: "Michael P. Robinson", // Or dynamically fetch from agent profile
+      url: `${process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000"}`,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "WasLost.Ai",
+      logo: {
+        "@type": "ImageObject",
+        url: `${process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000"}/images/waslost-logo.png`,
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": `${process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000"}/blog/${post.slug}`,
+    },
+    keywords: post.keywords || [],
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <Header />
       <main className="flex-1 container max-w-4xl mx-auto px-4 py-8 md:py-12">
         <article className="prose prose-invert max-w-none jupiter-outer-panel p-6 rounded-lg">
@@ -77,6 +112,16 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               <span className="ml-4">Keywords: {post.keywords.join(", ")}</span>
             )}
           </p>
+          {post.featured_image_url && (
+            <div className="mb-6">
+              <img
+                src={post.featured_image_url || "/placeholder.svg"}
+                alt={post.title}
+                className="w-full h-auto rounded-lg object-cover neumorphic-inset"
+                style={{ maxHeight: "400px" }} // Optional: limit height for consistency
+              />
+            </div>
+          )}
           <div dangerouslySetInnerHTML={{ __html: contentHtml }} className="blog-content" />
         </article>
       </main>

@@ -16,6 +16,7 @@ interface BlogPost {
   status: "draft" | "published"
   generated_at: string
   updated_at: string
+  featured_image_url: string | null // New field
 }
 
 interface AllFileMetadata {
@@ -199,6 +200,7 @@ export async function saveBlogPost(prevState: any, formData: FormData): Promise<
   const keywordsString = formData.get("keywords") as string // Comma-separated
   const metaDescription = formData.get("metaDescription") as string
   const status = formData.get("status") as "draft" | "published"
+  const featuredImageUrl = formData.get("featuredImageUrl") as string | null // New field
 
   if (!title || !content) {
     return { success: false, message: "Title and Content are required." }
@@ -224,6 +226,7 @@ export async function saveBlogPost(prevState: any, formData: FormData): Promise<
           keywords,
           meta_description: metaDescription,
           status,
+          featured_image_url: featuredImageUrl, // Save the new field
           updated_at: new Date().toISOString(),
         })
         .eq("id", id)
@@ -234,9 +237,15 @@ export async function saveBlogPost(prevState: any, formData: FormData): Promise<
       }
     } else {
       // Insert new post
-      const { error } = await supabaseAdmin
-        .from("blog_posts")
-        .insert({ title, slug, content, keywords, meta_description: metaDescription, status })
+      const { error } = await supabaseAdmin.from("blog_posts").insert({
+        title,
+        slug,
+        content,
+        keywords,
+        meta_description: metaDescription,
+        status,
+        featured_image_url: featuredImageUrl,
+      }) // Save the new field
 
       if (error) {
         console.error("Error inserting blog post:", error)
@@ -247,6 +256,7 @@ export async function saveBlogPost(prevState: any, formData: FormData): Promise<
     revalidatePath("/admin/blog-manager") // Revalidate admin page
     revalidatePath("/blog/[slug]") // Revalidate public blog page
     revalidatePath("/sitemap.xml") // Potentially for dynamic sitemap later
+    revalidatePath("/rss.xml") // Revalidate RSS feed
 
     return { success: true, message: `Blog post ${id ? "updated" : "created"} successfully!` }
   } catch (error) {
@@ -262,7 +272,7 @@ export async function getBlogPosts(): Promise<{ data: BlogPost[] | null; message
   try {
     const { data, error } = await supabaseAdmin
       .from("blog_posts")
-      .select("id, title, slug, status, generated_at, updated_at")
+      .select("id, title, slug, status, generated_at, updated_at, featured_image_url") // Select new field
       .order("generated_at", { ascending: false })
 
     if (error) {

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useMemo, useCallback, startTransition } from "react" // Import startTransition
+import { useState, useEffect, useMemo, useCallback, startTransition, useRef } from "react" // Import startTransition
 import { useActionState } from "react"
 import { useRouter } from "next/navigation"
 import { useWallet } from "@solana/wallet-adapter-react"
@@ -24,6 +24,7 @@ import {
   ChevronDownIcon,
 } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // Import all necessary server actions
 import { saveSocialPostsMarkdown } from "./content-manager/social-post-actions"
@@ -39,6 +40,8 @@ import {
 } from "./agent-manager/agent-actions"
 import { generateBlogPost, saveBlogPost, getBlogPosts, deleteBlogPost } from "./blog-manager/blog-actions"
 import { initialProjectUpdatesMarkdown } from "@/lib/current-projects" // For social post editor default
+import { uploadBlogImage } from "./blog-manager/blog-image-actions" // New import
+import { resizeImage } from "@/lib/image-processing" // Import client-side image resizer
 
 interface FileMetadata {
   fileName: string
@@ -76,6 +79,7 @@ interface BlogPost {
   status: "draft" | "published"
   generated_at: string
   updated_at: string
+  featured_image_url: string | null // Add this line
 }
 
 export default function AdminPage() {
@@ -141,6 +145,11 @@ export default function AdminPage() {
   const [generatedMetaDescription, setGeneratedMetaDescription] = useState("")
   const [selectedTagsForGeneration, setSelectedTagsForGeneration] = useState<string[]>([])
   const [availableRAGTags, setAvailableRAGTags] = useState<string[]>([]) // Tags from uploaded RAG files
+  const [postStatus, setPostStatus] = useState<"draft" | "published">("draft") // New state for blog post status
+  const [featuredImageFile, setFeaturedImageFile] = useState<File | null>(null)
+  const [featuredImageUrl, setFeaturedImageUrl] = useState<string | null>(null) // URL of the uploaded/resized image
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const featuredImageInputRef = useRef<HTMLInputElement>(null) // Ref for file input
 
   const [generateState, generateFormAction, isGenerating] = useActionState(generateBlogPost, {
     success: false,
@@ -502,6 +511,50 @@ export default function AdminPage() {
   // --- Blog Post Handlers ---
   // Removed handleGeneratePost function, as generateFormAction will be passed directly to form action prop
 
+  const handleFeaturedImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith("image/")) {
+      setFeaturedImageFile(file)
+      setFeaturedImageUrl(URL.createObjectURL(file)) // Show local preview immediately
+    } else {
+      setFeaturedImageFile(null)
+      setFeaturedImageUrl(null)
+      alert("Please select an image file (PNG, JPEG, GIF).")
+    }
+  }
+
+  const handleUploadFeaturedImage = async () => {
+    if (!featuredImageFile) {
+      alert("No image selected for upload.")
+      return
+    }
+
+    setIsUploadingImage(true)
+    try {
+      // Client-side resize before upload
+      const resizedBlob = await resizeImage(featuredImageFile, { maxWidth: 1200, maxHeight: 630, quality: 0.8 }) // Common blog image dimensions
+      if (!resizedBlob) {
+        throw new Error("Image resizing failed.")
+      }
+
+      const formData = new FormData()
+      formData.append("file", resizedBlob, featuredImageFile.name) // Append the resized blob
+
+      const result = await uploadBlogImage(null, formData)
+      if (result.success && result.imageUrl) {
+        setFeaturedImageUrl(result.imageUrl) // Set the actual Blob URL
+        alert(result.message)
+      } else {
+        alert(result.message)
+      }
+    } catch (error) {
+      console.error("Error uploading featured image:", error)
+      alert(`Failed to upload featured image: ${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
   const handleSavePost = (e: React.FormEvent) => {
     e.preventDefault()
     const formData = new FormData()
@@ -512,7 +565,10 @@ export default function AdminPage() {
     formData.append("content", generatedContent)
     formData.append("keywords", generatedKeywords.join(", "))
     formData.append("metaDescription", generatedMetaDescription)
-    formData.append("status", "draft") // For now, always save as draft
+    formData.append("status", postStatus) // Use the new state here
+    if (featuredImageUrl) {
+      formData.append("featuredImageUrl", featuredImageUrl) // Add featured image URL
+    }
 
     // Wrap the action call in startTransition
     startTransition(() => {
@@ -526,6 +582,9 @@ export default function AdminPage() {
     setGeneratedContent(post.content)
     setGeneratedKeywords(post.keywords || [])
     setGeneratedMetaDescription(post.meta_description || "")
+    setPostStatus(post.status) // Set the status when editing
+    setFeaturedImageUrl(post.featured_image_url) // Set featured image URL when editing
+    setFeaturedImageFile(null) // Clear file input for new upload
     setTopic("")
     setSelectedTagsForGeneration([])
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -546,6 +605,17 @@ export default function AdminPage() {
   }
 
   // --- Authorization Check ---
+  useEffect(() => {
+    if (editingPostId) {
+      const postToEdit = blogPosts.find((p) => p.id === editingPostId)
+      if (postToEdit) {
+        setPostStatus(postToEdit.status)
+      }
+    } else {
+      setPostStatus("draft") // Default to draft for new posts
+    }
+  }, [editingPostId, blogPosts])
+
   if (!connected || !isAuthorized) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -1026,6 +1096,56 @@ export default function AdminPage() {
                 <input type="hidden" name="selectedTags" value={selectedTagsForGeneration.join(",")} />
               </div>
 
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="featured-image" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Featured Image (Optional)
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="featured-image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFeaturedImageChange}
+                    ref={featuredImageInputRef}
+                    className="flex-1 bg-neumorphic-base shadow-inner-neumorphic text-white"
+                    disabled={isUploadingImage || isSaving}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleUploadFeaturedImage}
+                    className="jupiter-button-dark h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base flex items-center gap-2"
+                    disabled={!featuredImageFile || isUploadingImage || isSaving}
+                  >
+                    {isUploadingImage ? "Uploading..." : <UploadCloudIcon className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {featuredImageUrl && (
+                  <div className="mt-2 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Current Featured Image:</p>
+                    <img
+                      src={featuredImageUrl || "/placeholder.svg"}
+                      alt="Featured Blog Post Image"
+                      className="max-w-full h-auto max-h-48 object-contain rounded-lg neumorphic-inset mx-auto"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFeaturedImageUrl(null)
+                        setFeaturedImageFile(null)
+                        if (featuredImageInputRef.current) {
+                          featuredImageInputRef.current.value = "" // Clear file input
+                        }
+                      }}
+                      className="text-red-500 hover:bg-red-500/20 mt-2"
+                      disabled={isSaving}
+                    >
+                      Remove Image
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               <Button
                 type="submit"
                 className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
@@ -1073,6 +1193,27 @@ export default function AdminPage() {
                   disabled={isSaving}
                   maxLength={160}
                 />
+                <div>
+                  <Label htmlFor="post-status" className="block text-sm font-medium text-muted-foreground mb-1">
+                    Status
+                  </Label>
+                  <Select
+                    value={postStatus}
+                    onValueChange={(value: "draft" | "published") => setPostStatus(value)}
+                    disabled={isSaving}
+                  >
+                    <SelectTrigger
+                      id="post-status"
+                      className="w-full bg-neumorphic-base shadow-inner-neumorphic text-white"
+                    >
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-neumorphic-base text-white">
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button
                   onClick={handleSavePost}
                   className="jupiter-button-dark w-full h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base"
@@ -1094,6 +1235,11 @@ export default function AdminPage() {
                       setGeneratedContent("")
                       setGeneratedKeywords([])
                       setGeneratedMetaDescription("")
+                      setFeaturedImageUrl(null) // Clear featured image URL
+                      setFeaturedImageFile(null) // Clear featured image file
+                      if (featuredImageInputRef.current) {
+                        featuredImageInputRef.current.value = "" // Clear file input
+                      }
                     }}
                     variant="ghost"
                     className="w-full mt-2 text-muted-foreground hover:text-white"
