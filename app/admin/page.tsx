@@ -39,7 +39,6 @@ import {
 } from "./agent-manager/agent-actions"
 import { generateBlogPost, saveBlogPost, getBlogPosts, deleteBlogPost } from "./blog-manager/blog-actions"
 import { initialProjectUpdatesMarkdown } from "@/lib/current-projects" // For social post editor default
-import { ImageResizerDemo } from "@/components/image-resizer"
 
 interface FileMetadata {
   fileName: string
@@ -1167,7 +1166,6 @@ export default function AdminPage() {
         </Card>
 
         {/* Image Resizer Demo Card */}
-        <ImageResizerDemo />
       </div>
     </main>
   )
