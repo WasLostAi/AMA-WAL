@@ -26,6 +26,9 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+// Import the new RichTextEditor
+import RichTextEditor from "@/components/rich-text-editor"
+
 // Import all necessary server actions
 import { saveSocialPostsMarkdown } from "./content-manager/social-post-actions"
 import { uploadFileWithTag, getFileMetadata, deleteFile } from "./content-manager/file-upload-actions"
@@ -562,7 +565,7 @@ export default function AdminPage() {
       formData.append("id", editingPostId)
     }
     formData.append("title", generatedTitle)
-    formData.append("content", generatedContent)
+    formData.append("content", generatedContent) // This is now Markdown from the editor
     formData.append("keywords", generatedKeywords.join(", "))
     formData.append("metaDescription", generatedMetaDescription)
     formData.append("status", postStatus) // Use the new state here
@@ -579,7 +582,7 @@ export default function AdminPage() {
   const handleEditPost = (post: BlogPost) => {
     setEditingPostId(post.id)
     setGeneratedTitle(post.title)
-    setGeneratedContent(post.content)
+    setGeneratedContent(post.content) // This will be Markdown
     setGeneratedKeywords(post.keywords || [])
     setGeneratedMetaDescription(post.meta_description || "")
     setPostStatus(post.status) // Set the status when editing
@@ -1082,7 +1085,7 @@ export default function AdminPage() {
                         onClick={() => handleTagSelection(tag)}
                         className={`neumorphic-base text-sm px-3 py-1 rounded-full ${
                           selectedTagsForGeneration.includes(tag)
-                            ? "bg-[#2ed3b7] text-white hover:bg-[#c7f284] hover:text-black"
+                            ? "bg-[#2ed3b7] text-black hover:bg-[#c7f284] hover:text-black"
                             : "bg-neumorphic-light text-muted-foreground hover:bg-neumorphic-base"
                         }`}
                         disabled={isGenerating}
@@ -1171,12 +1174,12 @@ export default function AdminPage() {
                   placeholder="Generated Title"
                   disabled={isSaving}
                 />
-                <Textarea
-                  className="min-h-[300px] bg-neumorphic-base shadow-inner-neumorphic text-white font-mono text-sm mb-2"
-                  value={generatedContent}
-                  onChange={(e) => setGeneratedContent(e.target.value)}
-                  placeholder="Generated Markdown Content"
+                {/* Replaced Textarea with RichTextEditor */}
+                <RichTextEditor
+                  value={generatedContent || ""} // Ensure generatedContent is always a string
+                  onChange={setGeneratedContent}
                   disabled={isSaving}
+                  placeholder="Generated Markdown Content"
                 />
                 <Input
                   className="bg-neumorphic-base shadow-inner-neumorphic text-white mb-2"

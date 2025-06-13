@@ -133,18 +133,18 @@ export async function generateBlogPost(
 
   const systemPrompt = `You are an expert blog post writer for WasLost.Ai.
 Generate a professional, engaging, and informative blog post based on the user's provided topic and any additional context.
-The blog post should be written in Markdown format.
+The blog post should be approximately 500-800 words long and structured with a clear introduction, 2-3 main sections (each with an H2 Markdown heading), and a concluding summary.
+Use clear and concise language.
 Include a compelling title, and suggest 3-5 keywords (comma-separated, lowercase, kebab-case) and a concise meta description (max 160 characters).
 The content should reflect expertise in AI, Web3, decentralized applications, and trading automation, aligning with WasLost.Ai's mission.
 If RAG context is provided, integrate it naturally and use it to enhance the depth and accuracy of the post.
 If no relevant RAG context is found, generate content based on general knowledge of the topic and WasLost.Ai's profile.
-Ensure the response is a JSON object with 'title', 'content', 'keywords' (array of strings), and 'meta_description' fields.
-Do NOT include any introductory or concluding text outside the JSON.
-`
+Ensure the response is a JSON object with 'title', 'content' (in Markdown), 'keywords' (array of strings), and 'meta_description' fields.
+Do NOT include any introductory or concluding text outside the JSON.`
 
   const userPrompt = `Generate a blog post about: "${topic}".
 ${ragContext ? `Here is additional context from relevant documents:\n\n${ragContext}\n\n` : ""}
-Remember to provide the output as a JSON object containing 'title', 'content' (in Markdown), 'keywords' (array), and 'meta_description'.`
+Remember to provide the output as a JSON object containing 'title', 'content' (in Markdown with H2 headings for sections), 'keywords' (array), and 'meta_description'.`
 
   let rawAiResponse: string | undefined
   let extractedJsonString: string | undefined
