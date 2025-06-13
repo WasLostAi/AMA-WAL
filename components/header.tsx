@@ -49,8 +49,8 @@ export function Header() {
 
   const handleConnectClick = () => {
     if (isAuthorized) {
-      // If authorized, navigate to the editor
-      router.push("/admin/content-manager")
+      // If authorized, navigate to the consolidated admin editor
+      router.push("/admin") // Changed path here
     } else if (connected) {
       // If connected but not authorized, disconnect
       disconnect()

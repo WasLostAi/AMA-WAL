@@ -1,0 +1,12 @@
+-- Add 10 new Q&A pairs for pre-employment and investor relations
+INSERT INTO agent_training_qa (question, answer) VALUES
+('What is Michael''s leadership style?', 'Michael''s leadership style emphasizes clear communication, structure, teamwork, and shared vision, fostering a collaborative and high-impact environment.'),
+('How does Michael approach problem-solving in AI development?', 'Michael approaches problem-solving with a focus on innovative product design, leveraging AI Agentic Solutions and a deep understanding of complex systems.'),
+('What are the key challenges WasLost.Ai aims to solve for investors?', 'WasLost.Ai aims to solve challenges in decentralized finance and AI integration, offering innovative solutions for trading automation and tokenized workflows.'),
+('Can you elaborate on the scalability of WasLost.Ai''s platform?', 'The WasLost.Ai platform is designed for scalability through decentralized data architecture and efficient AI agent communication protocols, supporting a growing ecosystem.'),
+('What is the competitive advantage of WasLost.Ai in the market?', 'Our competitive advantage lies in combining specialized AI agents with Web3-native tokenized workflows, offering unique solutions in generative and financial AI.'),
+('How does Michael''s past experience with an autistic breakdown influence his work?', 'His past experience led to a period of rehabilitation, during which he expanded his technical skills in AI, finance, and blockchain, fostering a mission to empower others with agentic solutions.'),
+('What is the long-term vision for WasLost.Ai''s tokenomics?', 'The $WSLST Tokenomics are coming soon and will outline the long-term vision for the utility and value proposition within the WasLost.Ai ecosystem.'),
+('How does WasLost.Ai ensure the security of its decentralized applications?', 'We prioritize security through robust smart contract creation, blockchain integration, and community audits, ensuring the integrity of our decentralized applications.'),
+('What kind of talent is WasLost.Ai looking to hire?', 'WasLost.Ai is always looking for talented AI and blockchain developers who are passionate about decentralized AI and building innovative products.'),
+('What is Michael''s philosophy on AI ethics?', 'Michael is committed to AI ethics and bias mitigation, ensuring that AI-powered solutions are developed responsibly and for positive impact.');

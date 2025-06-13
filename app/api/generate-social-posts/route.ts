@@ -27,16 +27,16 @@ export async function GET(request: Request) {
     // --- Fetch agent profile data from Supabase ---
     let chatbotData: any = {}
     try {
+      // Use .limit(1) to ensure only one row is ever considered, even if multiple exist
       const { data: profileData, error: profileError } = await supabaseAdmin
         .from("agent_profile")
         .select("profile_data")
-        .single()
+        .limit(1) // Added .limit(1)
+        .maybeSingle()
 
       if (profileError) {
         console.error("Error fetching agent profile from Supabase:", profileError)
-        // If the table doesn't exist, return a specific JSON error
         if (profileError.code === "42P01") {
-          // PostgreSQL error code for "undefined_table"
           return NextResponse.json(
             {
               error: "Database table 'agent_profile' not found. Please run the SQL seed script.",
@@ -45,7 +45,6 @@ export async function GET(request: Request) {
             { status: 500 },
           )
         }
-        // For other Supabase errors, use fallback data but log the error
         console.warn("Using fallback chatbot data due to Supabase fetch error:", profileError.message)
       }
 
@@ -53,7 +52,6 @@ export async function GET(request: Request) {
         console.warn("No agent profile data found in Supabase. Using fallback data.")
       }
 
-      // Use fetched data or fallback
       chatbotData = profileData?.profile_data || {
         personal: { name: "Michael P. Robinson", nickname: "Mike", mission: "empower through AI" },
         professional: { currentRole: "AI Developer", skills: ["AI", "Web3"], keyAchievements: [] },
@@ -61,7 +59,6 @@ export async function GET(request: Request) {
       }
     } catch (dbFetchError) {
       console.error("Unexpected error during Supabase profile fetch:", dbFetchError)
-      // Ensure chatbotData is initialized even on unexpected errors
       chatbotData = {
         personal: { name: "Michael P. Robinson", nickname: "Mike", mission: "empower through AI" },
         professional: { currentRole: "AI Developer", skills: ["AI", "Web3"], keyAchievements: [] },
@@ -138,30 +135,32 @@ export async function GET(request: Request) {
       prompt: prompt,
     })
 
-    let rawJsonString = text.trim()
+    const rawAiResponse = text.trim()
 
-    // Strip Markdown code block wrappers
-    if (rawJsonString.startsWith("```json")) {
-      rawJsonString = rawJsonString.substring("```json".length)
+    // Robust JSON extraction: find the first '[' and last ']' for an array
+    const jsonStartIndex = rawAiResponse.indexOf("[")
+    const jsonEndIndex = rawAiResponse.lastIndexOf("]")
+
+    if (jsonStartIndex === -1 || jsonEndIndex === -1 || jsonEndIndex < jsonStartIndex) {
+      throw new Error("AI response did not contain a valid JSON array.")
     }
-    if (rawJsonString.endsWith("```")) {
-      rawJsonString = rawJsonString.substring(0, rawJsonString.length - "```".length)
-    }
-    rawJsonString = rawJsonString.trim()
+
+    const extractedJsonString = rawAiResponse.substring(jsonStartIndex, jsonEndIndex + 1)
 
     let generatedPosts: any[] = []
     try {
-      generatedPosts = JSON.parse(rawJsonString)
+      generatedPosts = JSON.parse(extractedJsonString)
       if (!Array.isArray(generatedPosts) || generatedPosts.some((p) => !p.headline || !p.content)) {
         throw new Error("AI response was not a valid array of post objects or missing required fields.")
       }
     } catch (parseError) {
       console.error(`Failed to parse AI generated text as JSON for ${type} posts:`, parseError)
-      console.error("AI raw response (after stripping):", rawJsonString)
+      console.error("AI raw response (after stripping):", rawAiResponse)
+      console.error("Extracted JSON attempt:", extractedJsonString)
       return NextResponse.json(
         {
           error: `Failed to generate valid ${type} posts from AI. AI response format was unexpected.`,
-          details: rawJsonString,
+          details: rawAiResponse,
         },
         { status: 500 },
       )
