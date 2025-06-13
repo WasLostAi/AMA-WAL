@@ -1,0 +1,989 @@
+"use client"
+
+import type React from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import { useActionState } from "react"
+import { useRouter } from "next/navigation"
+import { useWallet } from "@solana/wallet-adapter-react"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  XIcon,
+  SparklesIcon,
+  SaveIcon,
+  Trash2Icon,
+  FileTextIcon,
+  SearchIcon,
+  PlusIcon,
+  UploadCloudIcon,
+  ImageIcon,
+  FileIcon,
+} from "lucide-react"
+
+// Import all necessary server actions
+import { saveSocialPostsMarkdown } from "./content-manager/social-post-actions"
+import { uploadFileWithTag, getFileMetadata, deleteFile } from "./content-manager/file-upload-actions"
+import { suggestTagsFromFile } from "./content-manager/ai-tagging-action"
+import {
+  getAgentProfileData,
+  updateAgentProfileData,
+  getTrainingQAs,
+  addTrainingQA,
+  deleteTrainingQA,
+} from "./agent-manager/agent-actions"
+import { generateBlogPost, saveBlogPost, getBlogPosts, deleteBlogPost } from "./blog-manager/blog-actions"
+import { initialProjectUpdatesMarkdown } from "@/lib/current-projects" // For social post editor default
+
+interface FileMetadata {
+  fileName: string
+  filePath: string
+  tags: string[]
+  contentType: string
+  uploadedAt: string
+}
+
+interface AgentProfileData {
+  personal: any
+  professional: any
+  company: any
+  chatbotInstructions: any
+}
+
+interface TrainingQA {
+  id: string
+  question: string
+  answer: string
+}
+
+interface BlogPost {
+  id: string
+  title: string
+  slug: string
+  content: string
+  keywords: string[] | null
+  meta_description: string | null
+  status: "draft" | "published"
+  generated_at: string
+  updated_at: string
+}
+
+export default function AdminPage() {
+  const router = useRouter()
+  const { publicKey, connected } = useWallet()
+
+  const authorizedWalletAddress = useMemo(() => process.env.NEXT_PUBLIC_AUTHORIZED_SOLANA_WALLET, [])
+  const isAuthorized = useMemo(() => {
+    return connected && publicKey?.toBase58() === authorizedWalletAddress
+  }, [connected, publicKey, authorizedWalletAddress])
+
+  // --- Social Post Editor State ---
+  const [markdownContent, setMarkdownContent] = useState(initialProjectUpdatesMarkdown)
+  const [socialPostState, socialPostFormAction, isSocialPostPending] = useActionState(saveSocialPostsMarkdown, {
+    message: "",
+    success: false,
+  })
+
+  // --- File Uploads State ---
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [fileTagInput, setFileTagInput] = useState<string>("")
+  const [previouslyUsedTags, setPreviouslyUsedTags] = useState<string[]>([])
+  const [uploadedFiles, setUploadedFiles] = useState<FileMetadata[]>([])
+  const [isDragging, setIsDragging] = useState(false)
+  const [isFileUploadPending, setIsFileUploadPending] = useState(false)
+  const [isFetchingFiles, setIsFetchingFiles] = useState(true)
+  const [isSuggestingTags, setIsSuggestingTags] = useState(false)
+
+  // --- Agent Profile Editor State ---
+  const [profileJson, setProfileJson] = useState<string>("")
+  const [profileState, profileFormAction, isProfilePending] = useActionState(updateAgentProfileData, {
+    success: false,
+    message: "",
+  })
+  const [isFetchingProfile, setIsFetchingProfile] = useState(true)
+
+  // --- Training Q&A Manager State ---
+  const [trainingQAs, setTrainingQAs] = useState<TrainingQA[]>([])
+  const [newQuestion, setNewQuestion] = useState("")
+  const [newAnswer, setNewAnswer] = useState("")
+  const [addQAState, addQAFormAction, isAddQAPending] = useActionState(addTrainingQA, {
+    success: false,
+    message: "",
+  })
+  const [isFetchingQAs, setIsFetchingQAs] = useState(true)
+
+  // --- Blog Post Generation State ---
+  const [topic, setTopic] = useState("")
+  const [generatedTitle, setGeneratedTitle] = useState("")
+  const [generatedContent, setGeneratedContent] = useState("")
+  const [generatedKeywords, setGeneratedKeywords] = useState<string[]>([])
+  const [generatedMetaDescription, setGeneratedMetaDescription] = useState("")
+  const [selectedTagsForGeneration, setSelectedTagsForGeneration] = useState<string[]>([])
+  const [availableRAGTags, setAvailableRAGTags] = useState<string[]>([]) // Tags from uploaded RAG files
+
+  const [generateState, generateFormAction, isGenerating] = useActionState(generateBlogPost, {
+    success: false,
+    message: "",
+    generatedContent: "",
+    generatedTitle: "",
+    generatedKeywords: [],
+    generatedMetaDescription: "",
+  })
+
+  // Blog Post Saving/Listing State
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  const [isFetchingPosts, setIsFetchingPosts] = useState(true)
+  const [saveState, saveFormAction, isSaving] = useActionState(saveBlogPost, {
+    success: false,
+    message: "",
+  })
+
+  const [editingPostId, setEditingPostId] = useState<string | null>(null) // For editing existing posts
+
+  // --- Authorization Effect ---
+  useEffect(() => {
+    if (!connected || !isAuthorized) {
+      router.push("/") // Redirect if not authorized
+    }
+  }, [connected, isAuthorized, router])
+
+  // --- Data Fetching Callbacks ---
+  const fetchFileMetadata = useCallback(async () => {
+    setIsFetchingFiles(true)
+    try {
+      const metadata = await getFileMetadata()
+      setUploadedFiles(metadata.files)
+      setPreviouslyUsedTags(Array.from(new Set(metadata.files.flatMap((f) => f.tags))))
+    } catch (error) {
+      console.error("Failed to fetch file metadata:", error)
+    } finally {
+      setIsFetchingFiles(false)
+    }
+  }, [])
+
+  const fetchAgentProfile = useCallback(async () => {
+    setIsFetchingProfile(true)
+    const { data, message } = await getAgentProfileData()
+    if (data) {
+      setProfileJson(JSON.stringify(data, null, 2))
+    } else {
+      console.error(message || "Failed to fetch agent profile.")
+      // alert(message || "Failed to fetch agent profile. Check console for details."); // Removed alert for cleaner UX
+    }
+    setIsFetchingProfile(false)
+  }, [])
+
+  const fetchTrainingQAs = useCallback(async () => {
+    setIsFetchingQAs(true)
+    const { data, message } = await getTrainingQAs()
+    if (data) {
+      setTrainingQAs(data)
+    } else {
+      console.error(message || "Failed to fetch training Q&As.")
+      // alert(message || "Failed to fetch training Q&As. Check console for details."); // Removed alert for cleaner UX
+    }
+    setIsFetchingQAs(false)
+  }, [])
+
+  const fetchBlogData = useCallback(async () => {
+    setIsFetchingPosts(true)
+    try {
+      const metadata = await getFileMetadata() // For RAG tags
+      setAvailableRAGTags(Array.from(new Set(metadata.files.flatMap((f: FileMetadata) => f.tags))))
+
+      const { data: postsData, message: postsMessage } = await getBlogPosts()
+      if (postsData) {
+        setBlogPosts(postsData)
+      } else {
+        console.error(postsMessage || "Failed to fetch blog posts.")
+        // alert(postsMessage || "Failed to fetch blog posts."); // Removed alert for cleaner UX
+      }
+    } catch (error) {
+      console.error("Error fetching initial blog data:", error)
+      // alert("Failed to fetch initial blog data."); // Removed alert for cleaner UX
+    } finally {
+      setIsFetchingPosts(false)
+    }
+  }, [])
+
+  // --- Initial Data Fetching Effect ---
+  useEffect(() => {
+    if (isAuthorized) {
+      fetchFileMetadata()
+      fetchAgentProfile()
+      fetchTrainingQAs()
+      fetchBlogData()
+    }
+  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs, fetchBlogData])
+
+  // --- Action State Effects (for alerts) ---
+  useEffect(() => {
+    if (socialPostState.message) {
+      alert(socialPostState.message)
+    }
+  }, [socialPostState])
+
+  useEffect(() => {
+    if (profileState.message) {
+      alert(profileState.message)
+    }
+  }, [profileState])
+
+  useEffect(() => {
+    if (addQAState.message) {
+      alert(addQAState.message)
+      if (addQAState.success) {
+        setNewQuestion("")
+        setNewAnswer("")
+        fetchTrainingQAs() // Refresh Q&A list
+      }
+    }
+  }, [addQAState, fetchTrainingQAs])
+
+  useEffect(() => {
+    if (generateState.message) {
+      alert(generateState.message)
+      if (generateState.success) {
+        setGeneratedTitle(generateState.generatedTitle || "")
+        setGeneratedContent(generateState.generatedContent || "")
+        setGeneratedKeywords(generateState.generatedKeywords || [])
+        setGeneratedMetaDescription(generateState.generatedMetaDescription || "")
+      }
+    }
+  }, [generateState])
+
+  useEffect(() => {
+    if (saveState.message) {
+      alert(saveState.message)
+      if (saveState.success) {
+        if (!editingPostId) {
+          setGeneratedTitle("")
+          setGeneratedContent("")
+          setGeneratedKeywords([])
+          setGeneratedMetaDescription("")
+          setTopic("")
+          setSelectedTagsForGeneration([])
+        }
+        setEditingPostId(null)
+        fetchBlogData() // Refresh list of posts
+      }
+    }
+  }, [saveState, editingPostId, fetchBlogData])
+
+  // --- File Upload Handlers ---
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setSelectedFiles(Array.from(e.target.files))
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (e.dataTransfer.files) {
+      setSelectedFiles(Array.from(e.dataTransfer.files))
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragging(false)
+  }
+
+  const handleSuggestTags = async () => {
+    if (selectedFiles.length === 0) {
+      alert("Please select a file first to suggest tags.")
+      return
+    }
+
+    setIsSuggestingTags(true)
+    try {
+      const file = selectedFiles[0]
+      const formData = new FormData()
+      formData.append("file", file)
+      const result = await suggestTagsFromFile(formData)
+
+      if (result.success && result.tags.length > 0) {
+        setFileTagInput(result.tags.join(", "))
+      } else {
+        alert(result.message || "Could not suggest tags for this file type.")
+      }
+    } catch (error) {
+      console.error("Error suggesting tags:", error)
+      alert("Failed to suggest tags. Please try again.")
+    } finally {
+      setIsSuggestingTags(false)
+    }
+  }
+
+  const handleFileUpload = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (selectedFiles.length === 0) {
+      alert("Please select files to upload.")
+      return
+    }
+    if (!fileTagInput.trim()) {
+      alert("Please provide at least one tag for the files.")
+      return
+    }
+
+    setIsFileUploadPending(true)
+    let allSuccess = true
+    const tags = fileTagInput
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+
+    for (const file of selectedFiles) {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("tags", tags.join(","))
+
+      try {
+        const result = await uploadFileWithTag(null, formData)
+        if (!result.success) {
+          allSuccess = false
+          alert(`Failed to upload ${file.name}: ${result.message}`)
+        } else {
+          console.log(`Successfully uploaded and processed ${file.name}`)
+        }
+      } catch (error) {
+        allSuccess = false
+        console.error(`Error uploading ${file.name}:`, error)
+        alert(`An error occurred while uploading ${file.name}.`)
+      }
+    }
+
+    setIsFileUploadPending(false)
+    if (allSuccess) {
+      alert("All selected files uploaded and processed successfully!")
+      setSelectedFiles([])
+      setFileTagInput("")
+      fetchFileMetadata() // Refresh the list of uploaded files
+      fetchBlogData() // Also refresh blog data to update RAG tags
+    } else {
+      alert("Some files failed to upload. Check console for details.")
+    }
+  }
+
+  const handleDeleteFile = async (filePath: string) => {
+    if (confirm(`Are you sure you want to delete ${filePath}? This will also remove its AI memory.`)) {
+      try {
+        const result = await deleteFile(filePath)
+        if (result.success) {
+          alert(result.message)
+          fetchFileMetadata() // Refresh the list
+          fetchBlogData() // Also refresh blog data to update RAG tags
+        } else {
+          alert(result.message)
+        }
+      } catch (error) {
+        console.error("Error deleting file:", error)
+        alert("Failed to delete file.")
+      }
+    }
+  }
+
+  const getFileIcon = (contentType: string) => {
+    if (contentType.startsWith("image/")) {
+      return <ImageIcon className="h-6 w-6 text-[#afcd4f]" />
+    }
+    if (
+      contentType.includes("text/plain") ||
+      contentType.includes("text/markdown") ||
+      contentType.includes("text/html")
+    ) {
+      return <FileTextIcon className="h-6 w-6 text-green-500" />
+    }
+    return <FileIcon className="h-6 w-6 text-muted-foreground" />
+  }
+
+  // --- Training Q&A Handlers ---
+  const handleAddQA = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const formData = new FormData()
+    formData.append("question", newQuestion)
+    formData.append("answer", newAnswer)
+    addQAFormAction(formData)
+  }
+
+  const handleDeleteQA = async (id: string) => {
+    if (confirm("Are you sure you want to delete this Q&A?")) {
+      const { success, message } = await deleteTrainingQA(id)
+      alert(message)
+      if (success) {
+        fetchTrainingQAs() // Refresh Q&A list
+      }
+    }
+  }
+
+  // --- Blog Post Handlers ---
+  const handleGeneratePost = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!topic.trim()) {
+      alert("Please enter a topic to generate a blog post.")
+      return
+    }
+    const formData = new FormData()
+    formData.append("topic", topic)
+    formData.append("selectedTags", selectedTagsForGeneration.join(","))
+    generateFormAction(formData)
+  }
+
+  const handleSavePost = (e: React.FormEvent) => {
+    e.preventDefault()
+    const formData = new FormData()
+    if (editingPostId) {
+      formData.append("id", editingPostId)
+    }
+    formData.append("title", generatedTitle)
+    formData.append("content", generatedContent)
+    formData.append("keywords", generatedKeywords.join(", "))
+    formData.append("metaDescription", generatedMetaDescription)
+    formData.append("status", "draft") // For now, always save as draft
+    saveFormAction(formData)
+  }
+
+  const handleEditPost = (post: BlogPost) => {
+    setEditingPostId(post.id)
+    setGeneratedTitle(post.title)
+    setGeneratedContent(post.content)
+    setGeneratedKeywords(post.keywords || [])
+    setGeneratedMetaDescription(post.meta_description || "")
+    setTopic("")
+    setSelectedTagsForGeneration([])
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const handleDeletePost = async (id: string) => {
+    if (confirm("Are you sure you want to delete this blog post?")) {
+      const { success, message } = await deleteBlogPost(id)
+      alert(message)
+      if (success) {
+        fetchBlogData() // Refresh list
+      }
+    }
+  }
+
+  const handleTagSelection = (tag: string) => {
+    setSelectedTagsForGeneration((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
+  }
+
+  // --- Authorization Check ---
+  if (!connected || !isAuthorized) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-4">
+        <p className="text-red-500 text-lg">Unauthorized access. Redirecting...</p>
+      </main>
+    )
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-4">
+      <div className="w-full max-w-4xl space-y-8">
+        {/* Close Button */}
+        <div className="flex justify-end">
+          <Button
+            onClick={() => router.push("/")}
+            className="jupiter-button-dark h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base flex items-center gap-2"
+          >
+            <XIcon className="h-4 w-4" /> Close Editor
+          </Button>
+        </div>
+
+        {/* Social Post Editor Card */}
+        <Card className="w-full jupiter-outer-panel p-6">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Social Post Editor</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              Paste your Markdown-formatted project updates here. This content will be used by AI to generate your
+              social media posts.
+            </p>
+            <form action={socialPostFormAction} className="space-y-4">
+              <Textarea
+                name="markdownContent"
+                value={markdownContent}
+                onChange={(e) => setMarkdownContent(e.target.value)}
+                placeholder="Paste your Markdown content here..."
+                className="min-h-[400px] bg-neumorphic-base shadow-inner-neumorphic text-white p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#afcd4f]"
+              />
+              <Button
+                type="submit"
+                className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
+                disabled={isSocialPostPending}
+              >
+                {isSocialPostPending ? "Committing..." : "COMMIT SOCIAL POST UPDATES"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* File Upload Section */}
+        <Card className="w-full jupiter-outer-panel p-6 mt-8">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Upload Files for AI Memory</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              Upload files for the AI agent to reference. Supported for AI memory (RAG & tag suggestions):{" "}
+              <span className="font-semibold text-white">.txt, .md, .html</span>. Other file types (e.g., images, PDFs,
+              DOCX) will be uploaded but not processed for AI memory.
+            </p>
+            <div
+              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                isDragging ? "border-[#afcd4f] bg-neumorphic-light" : "border-muted-foreground/30 bg-neumorphic-base"
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById("file-input")?.click()}
+            >
+              <UploadCloudIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                {selectedFiles.length > 0
+                  ? `${selectedFiles.length} file(s) selected`
+                  : "Drag & drop files here, or click to select"}
+              </p>
+              <input
+                id="file-input"
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
+                disabled={isFileUploadPending}
+              />
+            </div>
+
+            {selectedFiles.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Selected Files:</p>
+                <ul className="list-disc list-inside text-sm text-white">
+                  {selectedFiles.map((file, index) => (
+                    <li key={index}>
+                      {file.name} ({Math.round(file.size / 1024)} KB)
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="space-y-2 mt-4">
+              <Label htmlFor="file-tag" className="block text-sm font-medium text-muted-foreground">
+                Tags (comma-separated)
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="file-tag"
+                  type="text"
+                  value={fileTagInput}
+                  onChange={(e) => setFileTagInput(e.target.value)}
+                  placeholder="e.g., project-alpha, roadmap, image, Q1-planning"
+                  list="previously-used-tags"
+                  className="flex-1 bg-neumorphic-base shadow-inner-neumorphic text-white"
+                  disabled={isFileUploadPending}
+                />
+                <Button
+                  type="button"
+                  onClick={handleSuggestTags}
+                  className="jupiter-button-dark h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base flex items-center gap-2"
+                  disabled={isSuggestingTags || selectedFiles.length === 0 || isFileUploadPending}
+                >
+                  {isSuggestingTags ? "Suggesting..." : <SparklesIcon className="h-4 w-4" />}
+                </Button>
+              </div>
+              <datalist id="previously-used-tags">
+                {previouslyUsedTags.map((tag) => (
+                  <option key={tag} value={tag} />
+                ))}
+              </datalist>
+            </div>
+
+            <Button
+              type="submit"
+              onClick={handleFileUpload}
+              className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base mt-4"
+              disabled={isFileUploadPending || selectedFiles.length === 0 || !fileTagInput.trim()}
+            >
+              {isFileUploadPending ? "Uploading..." : "UPLOAD FILE(S)"}
+            </Button>
+
+            <h3 className="text-xl font-bold text-[#afcd4f] mt-8 mb-4 text-center">Uploaded Files</h3>
+            {isFetchingFiles ? (
+              <p className="text-center text-muted-foreground">Loading files...</p>
+            ) : uploadedFiles.length === 0 ? (
+              <p className="text-center text-muted-foreground">No files uploaded yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {uploadedFiles.map((file) => (
+                  <div
+                    key={file.filePath}
+                    className="neumorphic-inset p-3 flex items-center justify-between gap-4 rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      {getFileIcon(file.contentType)}
+                      <div>
+                        <p className="text-sm font-medium text-white">{file.fileName}</p>
+                        <p className="text-xs text-muted-foreground">Tags: {file.tags.join(", ") || "No tags"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Uploaded: {new Date(file.uploadedAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteFile(file.filePath)}
+                      className="text-red-500 hover:bg-red-500/20"
+                      aria-label={`Delete ${file.fileName}`}
+                    >
+                      <Trash2Icon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Agent Profile Editor Card */}
+        <Card className="w-full jupiter-outer-panel p-6 mt-8">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Agent Profile Editor</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              Edit the core JSON data that defines the agent's persona, professional background, and company details.
+              Ensure the JSON is valid.
+            </p>
+            {isFetchingProfile ? (
+              <p className="text-center text-muted-foreground">Loading profile data...</p>
+            ) : (
+              <form action={profileFormAction} className="space-y-4">
+                <Textarea
+                  name="profileJson"
+                  value={profileJson}
+                  onChange={(e) => setProfileJson(e.target.value)}
+                  placeholder="Paste agent profile JSON here..."
+                  className="min-h-[500px] bg-neumorphic-base shadow-inner-neumorphic text-white p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#afcd4f] font-mono text-sm"
+                />
+                <Button
+                  type="submit"
+                  className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
+                  disabled={isProfilePending}
+                >
+                  {isProfilePending ? (
+                    "Saving Profile..."
+                  ) : (
+                    <>
+                      <SaveIcon className="h-4 w-4 mr-2" /> SAVE AGENT PROFILE
+                    </>
+                  )}
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Training Q&A Manager Card */}
+        <Card className="w-full jupiter-outer-panel p-6 mt-8">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Training Q&A Manager</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              Add specific Question & Answer pairs to train the AI on common queries.
+            </p>
+
+            <form onSubmit={handleAddQA} className="space-y-4 mb-8 p-4 neumorphic-inset rounded-lg">
+              <h3 className="text-lg font-semibold text-white">Add New Q&A</h3>
+              <div>
+                <Label htmlFor="new-question" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Question
+                </Label>
+                <Input
+                  id="new-question"
+                  type="text"
+                  value={newQuestion}
+                  onChange={(e) => setNewQuestion(e.target.value)}
+                  placeholder="e.g., What is Michael's background in AI?"
+                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                  disabled={isAddQAPending}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-answer" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Answer
+                </Label>
+                <Textarea
+                  id="new-answer"
+                  value={newAnswer}
+                  onChange={(e) => setNewAnswer(e.target.value)}
+                  placeholder="e.g., Michael has extensive experience in AI development, including..."
+                  className="min-h-[100px] bg-neumorphic-base shadow-inner-neumorphic text-white"
+                  disabled={isAddQAPending}
+                  required
+                />
+              </div>
+              <Button
+                type="submit"
+                className="jupiter-button-dark w-full h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base"
+                disabled={isAddQAPending || !newQuestion.trim() || !newAnswer.trim()}
+              >
+                {isAddQAPending ? (
+                  "Adding Q&A..."
+                ) : (
+                  <>
+                    <PlusIcon className="h-4 w-4 mr-2" /> ADD Q&A
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <h3 className="text-xl font-bold text-[#afcd4f] mt-8 mb-4 text-center">Existing Q&A Pairs</h3>
+            {isFetchingQAs ? (
+              <p className="text-center text-muted-foreground">Loading Q&A pairs...</p>
+            ) : trainingQAs.length === 0 ? (
+              <p className="text-center text-muted-foreground">No Q&A pairs added yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {trainingQAs.map((qa) => (
+                  <div
+                    key={qa.id}
+                    className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">
+                        <span className="text-[#afcd4f]">Q:</span> {qa.question}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        <span className="text-[#afcd4f]">A:</span> {qa.answer}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteQA(qa.id)}
+                      className="text-red-500 hover:bg-red-500/20 flex-shrink-0"
+                      aria-label={`Delete Q&A: ${qa.question}`}
+                    >
+                      <Trash2Icon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Blog Post Generation Card */}
+        <Card className="w-full jupiter-outer-panel p-6 mt-8">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">AI Blog Post Generator</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              Generate a blog post by providing a topic and optionally selecting relevant RAG tags.
+            </p>
+            <form onSubmit={handleGeneratePost} className="space-y-4">
+              <div>
+                <Label htmlFor="topic" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Blog Post Topic
+                </Label>
+                <Input
+                  id="topic"
+                  type="text"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="e.g., The Future of Decentralized AI"
+                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                  disabled={isGenerating}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label className="block text-sm font-medium text-muted-foreground mb-1">
+                  Relevant RAG Tags (Optional)
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {availableRAGTags.length === 0 && !isFetchingPosts ? (
+                    <span className="text-xs text-muted-foreground">
+                      No RAG tags available. Upload files with tags in Content Manager.
+                    </span>
+                  ) : (
+                    availableRAGTags.map((tag) => (
+                      <Button
+                        key={tag}
+                        type="button"
+                        variant={selectedTagsForGeneration.includes(tag) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleTagSelection(tag)}
+                        className={`neumorphic-base text-sm px-3 py-1 rounded-full ${
+                          selectedTagsForGeneration.includes(tag)
+                            ? "bg-[#2ed3b7] text-white hover:bg-[#c7f284] hover:text-black"
+                            : "bg-neumorphic-light text-muted-foreground hover:bg-neumorphic-base"
+                        }`}
+                        disabled={isGenerating}
+                      >
+                        {tag}
+                      </Button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
+                disabled={isGenerating || !topic.trim()}
+              >
+                {isGenerating ? (
+                  "Generating..."
+                ) : (
+                  <>
+                    <SparklesIcon className="h-4 w-4 mr-2" /> GENERATE BLOG POST
+                  </>
+                )}
+              </Button>
+            </form>
+
+            {(generatedTitle || generatedContent) && (
+              <div className="mt-8 p-4 neumorphic-inset rounded-lg">
+                <h3 className="text-lg font-semibold text-white mb-2">Generated Content Preview</h3>
+                <Input
+                  className="bg-neumorphic-base shadow-inner-neumorphic text-white mb-2"
+                  value={generatedTitle}
+                  onChange={(e) => setGeneratedTitle(e.target.value)}
+                  placeholder="Generated Title"
+                  disabled={isSaving}
+                />
+                <Textarea
+                  className="min-h-[300px] bg-neumorphic-base shadow-inner-neumorphic text-white font-mono text-sm mb-2"
+                  value={generatedContent}
+                  onChange={(e) => setGeneratedContent(e.target.value)}
+                  placeholder="Generated Markdown Content"
+                  disabled={isSaving}
+                />
+                <Input
+                  className="bg-neumorphic-base shadow-inner-neumorphic text-white mb-2"
+                  value={generatedKeywords.join(", ")}
+                  onChange={(e) => setGeneratedKeywords(e.target.value.split(",").map((k) => k.trim()))}
+                  placeholder="Generated Keywords (comma-separated)"
+                  disabled={isSaving}
+                />
+                <Textarea
+                  className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white mb-2"
+                  value={generatedMetaDescription}
+                  onChange={(e) => setGeneratedMetaDescription(e.target.value)}
+                  placeholder="Generated Meta Description (max 160 chars)"
+                  disabled={isSaving}
+                  maxLength={160}
+                />
+                <Button
+                  onClick={handleSavePost}
+                  className="jupiter-button-dark w-full h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base"
+                  disabled={isSaving || !generatedTitle.trim() || !generatedContent.trim()}
+                >
+                  {isSaving ? (
+                    "Saving..."
+                  ) : (
+                    <>
+                      <SaveIcon className="h-4 w-4 mr-2" /> {editingPostId ? "UPDATE POST" : "SAVE NEW POST"}
+                    </>
+                  )}
+                </Button>
+                {editingPostId && (
+                  <Button
+                    onClick={() => {
+                      setEditingPostId(null)
+                      setGeneratedTitle("")
+                      setGeneratedContent("")
+                      setGeneratedKeywords([])
+                      setGeneratedMetaDescription("")
+                    }}
+                    variant="ghost"
+                    className="w-full mt-2 text-muted-foreground hover:text-white"
+                  >
+                    Cancel Edit
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Existing Blog Posts List */}
+        <Card className="w-full jupiter-outer-panel p-6 mt-8">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Existing Blog Posts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isFetchingPosts ? (
+              <p className="text-center text-muted-foreground">Loading blog posts...</p>
+            ) : blogPosts.length === 0 ? (
+              <p className="text-center text-muted-foreground">No blog posts generated yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {blogPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">{post.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Status:{" "}
+                        <span className={post.status === "published" ? "text-[#2ed3b7]" : "text-yellow-500"}>
+                          {post.status}
+                        </span>{" "}
+                        | Generated: {new Date(post.generated_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => router.push(`/blog/${post.slug}`)}
+                        className="text-muted-foreground hover:bg-muted-foreground/20"
+                        aria-label={`View blog post: ${post.title}`}
+                      >
+                        <SearchIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditPost(post)}
+                        className="text-[#afcd4f] hover:bg-[#afcd4f]/20"
+                        aria-label={`Edit blog post: ${post.title}`}
+                      >
+                        <FileTextIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeletePost(post.id)}
+                        className="text-red-500 hover:bg-red-500/20"
+                        aria-label={`Delete blog post: ${post.title}`}
+                      >
+                        <Trash2Icon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </main>
+  )
+}
