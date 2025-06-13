@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useMemo } from "react"
-import { WalletAdapterNetwork } from "@solana/wallet-adapter-base"
+import { WalletAdapterNetwork, WalletConnectionError } from "@solana/wallet-adapter-base"
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react"
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui"
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets"
@@ -32,9 +32,17 @@ export function WalletProviderWrapper({ children }: WalletProviderWrapperProps) 
     [],
   )
 
+  const handleWalletError = (error: any) => {
+    if (error instanceof WalletConnectionError && error.message.includes("User rejected the request")) {
+      console.warn("Wallet connection rejected by user. Please approve the connection in your wallet application.")
+    } else {
+      console.error("An unexpected wallet error occurred:", error)
+    }
+  }
+
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
+      <WalletProvider wallets={wallets} autoConnect onError={handleWalletError}>
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
