@@ -459,6 +459,7 @@ export default function AdminPage() {
     formData.append("answer", newAnswer)
 
     if (editingQAId) {
+      formData.append("id", editingQAId) // Add ID for update
       updateQAFormAction(formData)
     } else {
       addQAFormAction(formData)
