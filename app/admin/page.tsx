@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, startTransition } from "react" // Import startTransition
 import { useActionState } from "react"
 import { useRouter } from "next/navigation"
 import { useWallet } from "@solana/wallet-adapter-react"
@@ -459,7 +459,6 @@ export default function AdminPage() {
     formData.append("answer", newAnswer)
 
     if (editingQAId) {
-      formData.append("id", editingQAId)
       updateQAFormAction(formData)
     } else {
       addQAFormAction(formData)
@@ -513,7 +512,11 @@ export default function AdminPage() {
     formData.append("keywords", generatedKeywords.join(", "))
     formData.append("metaDescription", generatedMetaDescription)
     formData.append("status", "draft") // For now, always save as draft
-    saveFormAction(formData)
+
+    // Wrap the action call in startTransition
+    startTransition(() => {
+      saveFormAction(formData)
+    })
   }
 
   const handleEditPost = (post: BlogPost) => {
