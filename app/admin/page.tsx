@@ -424,17 +424,7 @@ export default function AdminPage() {
   }
 
   // --- Blog Post Handlers ---
-  const handleGeneratePost = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!topic.trim()) {
-      alert("Please enter a topic to generate a blog post.")
-      return
-    }
-    const formData = new FormData()
-    formData.append("topic", topic)
-    formData.append("selectedTags", selectedTagsForGeneration.join(","))
-    generateFormAction(formData)
-  }
+  // Removed handleGeneratePost function, as generateFormAction will be passed directly to form action prop
 
   const handleSavePost = (e: React.FormEvent) => {
     e.preventDefault()
@@ -793,7 +783,8 @@ export default function AdminPage() {
             <p className="text-sm text-muted-foreground mb-4 text-center">
               Generate a blog post by providing a topic and optionally selecting relevant RAG tags.
             </p>
-            <form onSubmit={handleGeneratePost} className="space-y-4">
+            {/* Changed onSubmit to action and removed handleGeneratePost */}
+            <form action={generateFormAction} className="space-y-4">
               <div>
                 <Label htmlFor="topic" className="block text-sm font-medium text-muted-foreground mb-1">
                   Blog Post Topic
@@ -801,6 +792,7 @@ export default function AdminPage() {
                 <Input
                   id="topic"
                   type="text"
+                  name="topic" // Added name attribute for FormData
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="e.g., The Future of Decentralized AI"
@@ -839,6 +831,8 @@ export default function AdminPage() {
                     ))
                   )}
                 </div>
+                {/* Hidden input to pass selectedTagsForGeneration to the server action */}
+                <input type="hidden" name="selectedTags" value={selectedTagsForGeneration.join(",")} />
               </div>
 
               <Button
