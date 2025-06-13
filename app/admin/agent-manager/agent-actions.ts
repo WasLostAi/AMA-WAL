@@ -90,6 +90,7 @@ export async function updateAgentProfileData(
     revalidatePath("/api/chat") // Revalidate chat API to pick up new profile
     revalidatePath("/api/generate-social-posts") // Revalidate social posts API
     revalidatePath("/admin/agent-manager") // Revalidate this page
+    revalidatePath("/admin") // Revalidate the consolidated admin page
 
     return { success: true, message: "Agent profile updated successfully!" }
   } catch (error) {
@@ -145,10 +146,42 @@ export async function addTrainingQA(
     }
 
     revalidatePath("/api/chat") // Revalidate chat API
-    revalidatePath("/admin/agent-manager") // Revalidate this page
+    revalidatePath("/admin") // Revalidate this page
     return { success: true, message: "Q&A added successfully!" }
   } catch (error) {
     console.error("Unexpected error in addTrainingQA:", error)
+    return {
+      success: false,
+      message: `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+}
+
+export async function updateTrainingQA(
+  prevState: any,
+  formData: FormData,
+): Promise<{ success: boolean; message: string }> {
+  const id = formData.get("id") as string
+  const question = formData.get("question") as string
+  const answer = formData.get("answer") as string
+
+  if (!id || !question || !answer) {
+    return { success: false, message: "ID, Question, and Answer are required for update." }
+  }
+
+  try {
+    const { error } = await supabaseAdmin.from("agent_training_qa").update({ question, answer }).eq("id", id)
+
+    if (error) {
+      console.error("Error updating training Q&A:", error)
+      return { success: false, message: `Failed to update Q&A: ${error.message}` }
+    }
+
+    revalidatePath("/api/chat") // Revalidate chat API
+    revalidatePath("/admin") // Revalidate this page
+    return { success: true, message: "Q&A updated successfully!" }
+  } catch (error) {
+    console.error("Unexpected error in updateTrainingQA:", error)
     return {
       success: false,
       message: `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`,
@@ -166,7 +199,7 @@ export async function deleteTrainingQA(id: string): Promise<{ success: boolean; 
     }
 
     revalidatePath("/api/chat") // Revalidate chat API
-    revalidatePath("/admin/agent-manager") // Revalidate this page
+    revalidatePath("/admin") // Revalidate this page
     return { success: true, message: "Q&A deleted successfully!" }
   } catch (error) {
     console.error("Unexpected error in deleteTrainingQA:", error)

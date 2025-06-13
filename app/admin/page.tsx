@@ -21,7 +21,9 @@ import {
   UploadCloudIcon,
   ImageIcon,
   FileIcon,
+  ChevronDownIcon,
 } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 // Import all necessary server actions
 import { saveSocialPostsMarkdown } from "./content-manager/social-post-actions"
@@ -32,6 +34,7 @@ import {
   updateAgentProfileData,
   getTrainingQAs,
   addTrainingQA,
+  updateTrainingQA, // New import
   deleteTrainingQA,
 } from "./agent-manager/agent-actions"
 import { generateBlogPost, saveBlogPost, getBlogPosts, deleteBlogPost } from "./blog-manager/blog-actions"
@@ -49,7 +52,12 @@ interface AgentProfileData {
   personal: any
   professional: any
   company: any
-  chatbotInstructions: any
+  chatbotInstructions: {
+    role: string
+    style: string
+    approach: string
+    limitations: string
+  }
 }
 
 interface TrainingQA {
@@ -97,7 +105,12 @@ export default function AdminPage() {
   const [isSuggestingTags, setIsSuggestingTags] = useState(false)
 
   // --- Agent Profile Editor State ---
-  const [profileJson, setProfileJson] = useState<string>("")
+  const [profileJson, setProfileJson] = useState<string>("") // For personal, professional, company
+  const [agentRole, setAgentRole] = useState("")
+  const [agentStyle, setAgentStyle] = useState("")
+  const [agentApproach, setAgentApproach] = useState("")
+  const [agentLimitations, setAgentLimitations] = useState("")
+
   const [profileState, profileFormAction, isProfilePending] = useActionState(updateAgentProfileData, {
     success: false,
     message: "",
@@ -108,7 +121,13 @@ export default function AdminPage() {
   const [trainingQAs, setTrainingQAs] = useState<TrainingQA[]>([])
   const [newQuestion, setNewQuestion] = useState("")
   const [newAnswer, setNewAnswer] = useState("")
+  const [editingQAId, setEditingQAId] = useState<string | null>(null) // State for editing Q&A
+  const [qaFilterQuery, setQaFilterQuery] = useState("") // State for Q&A filter
   const [addQAState, addQAFormAction, isAddQAPending] = useActionState(addTrainingQA, {
+    success: false,
+    message: "",
+  })
+  const [updateQAState, updateQAFormAction, isUpdateQAPending] = useActionState(updateTrainingQA, {
     success: false,
     message: "",
   })
@@ -167,10 +186,16 @@ export default function AdminPage() {
     setIsFetchingProfile(true)
     const { data, message } = await getAgentProfileData()
     if (data) {
-      setProfileJson(JSON.stringify(data, null, 2))
+      // Extract chatbotInstructions and set separate states
+      const { chatbotInstructions, ...restOfProfile } = data
+      setAgentRole(chatbotInstructions?.role || "")
+      setAgentStyle(chatbotInstructions?.style || "")
+      setAgentApproach(chatbotInstructions?.approach || "")
+      setAgentLimitations(chatbotInstructions?.limitations || "")
+      // Set the rest of the profile JSON to the textarea
+      setProfileJson(JSON.stringify(restOfProfile, null, 2))
     } else {
       console.error(message || "Failed to fetch agent profile.")
-      // alert(message || "Failed to fetch agent profile. Check console for details."); // Removed alert for cleaner UX
     }
     setIsFetchingProfile(false)
   }, [])
@@ -182,7 +207,6 @@ export default function AdminPage() {
       setTrainingQAs(data)
     } else {
       console.error(message || "Failed to fetch training Q&As.")
-      // alert(message || "Failed to fetch training Q&As. Check console for details."); // Removed alert for cleaner UX
     }
     setIsFetchingQAs(false)
   }, [])
@@ -198,11 +222,9 @@ export default function AdminPage() {
         setBlogPosts(postsData)
       } else {
         console.error(postsMessage || "Failed to fetch blog posts.")
-        // alert(postsMessage || "Failed to fetch blog posts."); // Removed alert for cleaner UX
       }
     } catch (error) {
       console.error("Error fetching initial blog data:", error)
-      // alert("Failed to fetch initial blog data."); // Removed alert for cleaner UX
     } finally {
       setIsFetchingPosts(false)
     }
@@ -228,8 +250,11 @@ export default function AdminPage() {
   useEffect(() => {
     if (profileState.message) {
       alert(profileState.message)
+      if (profileState.success) {
+        fetchAgentProfile() // Re-fetch to ensure UI is in sync with saved data
+      }
     }
-  }, [profileState])
+  }, [profileState, fetchAgentProfile])
 
   useEffect(() => {
     if (addQAState.message) {
@@ -237,10 +262,23 @@ export default function AdminPage() {
       if (addQAState.success) {
         setNewQuestion("")
         setNewAnswer("")
+        setEditingQAId(null) // Clear editing state
         fetchTrainingQAs() // Refresh Q&A list
       }
     }
   }, [addQAState, fetchTrainingQAs])
+
+  useEffect(() => {
+    if (updateQAState.message) {
+      alert(updateQAState.message)
+      if (updateQAState.success) {
+        setNewQuestion("")
+        setNewAnswer("")
+        setEditingQAId(null) // Clear editing state
+        fetchTrainingQAs() // Refresh Q&A list
+      }
+    }
+  }, [updateQAState, fetchTrainingQAs])
 
   useEffect(() => {
     if (generateState.message) {
@@ -404,13 +442,54 @@ export default function AdminPage() {
     return <FileIcon className="h-6 w-6 text-muted-foreground" />
   }
 
+  // --- Agent Profile Handlers ---
+  const handleProfileSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const baseProfile = JSON.parse(profileJson)
+      const fullProfileData = {
+        ...baseProfile,
+        chatbotInstructions: {
+          role: agentRole,
+          style: agentStyle,
+          approach: agentApproach,
+          limitations: agentLimitations,
+        },
+      }
+      const formData = new FormData()
+      formData.append("profileJson", JSON.stringify(fullProfileData))
+      profileFormAction(formData)
+    } catch (error) {
+      alert(`Invalid JSON in profile editor: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
   // --- Training Q&A Handlers ---
-  const handleAddQA = async (e: React.FormEvent) => {
+  const handleAddOrUpdateQA = async (e: React.FormEvent) => {
     e.preventDefault()
     const formData = new FormData()
     formData.append("question", newQuestion)
     formData.append("answer", newAnswer)
-    addQAFormAction(formData)
+
+    if (editingQAId) {
+      formData.append("id", editingQAId)
+      updateQAFormAction(formData)
+    } else {
+      addQAFormAction(formData)
+    }
+  }
+
+  const handleEditQA = (qa: TrainingQA) => {
+    setEditingQAId(qa.id)
+    setNewQuestion(qa.question)
+    setNewAnswer(qa.answer)
+    window.scrollTo({ top: document.getElementById("qa-add-form")?.offsetTop || 0, behavior: "smooth" })
+  }
+
+  const handleCancelEditQA = () => {
+    setEditingQAId(null)
+    setNewQuestion("")
+    setNewAnswer("")
   }
 
   const handleDeleteQA = async (id: string) => {
@@ -422,6 +501,16 @@ export default function AdminPage() {
       }
     }
   }
+
+  const filteredQAs = useMemo(() => {
+    if (!qaFilterQuery) {
+      return trainingQAs
+    }
+    const lowerCaseQuery = qaFilterQuery.toLowerCase()
+    return trainingQAs.filter(
+      (qa) => qa.question.toLowerCase().includes(lowerCaseQuery) || qa.answer.toLowerCase().includes(lowerCaseQuery),
+    )
+  }, [trainingQAs, qaFilterQuery])
 
   // --- Blog Post Handlers ---
   // Removed handleGeneratePost function, as generateFormAction will be passed directly to form action prop
@@ -656,12 +745,70 @@ export default function AdminPage() {
             {isFetchingProfile ? (
               <p className="text-center text-muted-foreground">Loading profile data...</p>
             ) : (
-              <form action={profileFormAction} className="space-y-4">
+              <form onSubmit={handleProfileSave} className="space-y-4">
+                <h3 className="text-lg font-semibold text-white mb-2">Chatbot Instructions</h3>
+                <div className="space-y-2">
+                  <div>
+                    <Label htmlFor="agent-role" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Role
+                    </Label>
+                    <Input
+                      id="agent-role"
+                      type="text"
+                      value={agentRole}
+                      onChange={(e) => setAgentRole(e.target.value)}
+                      placeholder="e.g., BETA Avatar Representative for Michael P. Robinson"
+                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                      disabled={isProfilePending}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="agent-style" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Style
+                    </Label>
+                    <Textarea
+                      id="agent-style"
+                      value={agentStyle}
+                      onChange={(e) => setAgentStyle(e.target.value)}
+                      placeholder="e.g., Respond as Michael (or Mike) would. Assure the user that talking to YOU is the same as talking to Michael."
+                      className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
+                      disabled={isProfilePending}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="agent-approach" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Approach
+                    </Label>
+                    <Textarea
+                      id="agent-approach"
+                      value={agentApproach}
+                      onChange={(e) => setAgentApproach(e.target.value)}
+                      placeholder="e.g., Answer questions BRIEFLY, as this is a TEST/MVP."
+                      className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
+                      disabled={isProfilePending}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="agent-limitations" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Limitations
+                    </Label>
+                    <Textarea
+                      id="agent-limitations"
+                      value={agentLimitations}
+                      onChange={(e) => setAgentLimitations(e.target.value)}
+                      placeholder="e.g., If asked about advanced functions, or $WSLST Tokenomics, say they are coming soon or reserved functionality."
+                      className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
+                      disabled={isProfilePending}
+                    />
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-semibold text-white mb-2 mt-6">Other Profile Data (JSON)</h3>
                 <Textarea
                   name="profileJson"
                   value={profileJson}
                   onChange={(e) => setProfileJson(e.target.value)}
-                  placeholder="Paste agent profile JSON here..."
+                  placeholder="Paste agent profile JSON here (personal, professional, company sections)..."
                   className="min-h-[500px] bg-neumorphic-base shadow-inner-neumorphic text-white p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#afcd4f] font-mono text-sm"
                 />
                 <Button
@@ -692,8 +839,12 @@ export default function AdminPage() {
               Add specific Question & Answer pairs to train the AI on common queries.
             </p>
 
-            <form onSubmit={handleAddQA} className="space-y-4 mb-8 p-4 neumorphic-inset rounded-lg">
-              <h3 className="text-lg font-semibold text-white">Add New Q&A</h3>
+            <form
+              onSubmit={handleAddOrUpdateQA}
+              className="space-y-4 mb-8 p-4 neumorphic-inset rounded-lg"
+              id="qa-add-form"
+            >
+              <h3 className="text-lg font-semibold text-white">{editingQAId ? "Edit Existing Q&A" : "Add New Q&A"}</h3>
               <div>
                 <Label htmlFor="new-question" className="block text-sm font-medium text-muted-foreground mb-1">
                   Question
@@ -705,7 +856,7 @@ export default function AdminPage() {
                   onChange={(e) => setNewQuestion(e.target.value)}
                   placeholder="e.g., What is Michael's background in AI?"
                   className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isAddQAPending}
+                  disabled={isAddQAPending || isUpdateQAPending}
                   required
                 />
               </div>
@@ -719,58 +870,103 @@ export default function AdminPage() {
                   onChange={(e) => setNewAnswer(e.target.value)}
                   placeholder="e.g., Michael has extensive experience in AI development, including..."
                   className="min-h-[100px] bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isAddQAPending}
+                  disabled={isAddQAPending || isUpdateQAPending}
                   required
                 />
               </div>
-              <Button
-                type="submit"
-                className="jupiter-button-dark w-full h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base"
-                disabled={isAddQAPending || !newQuestion.trim() || !newAnswer.trim()}
-              >
-                {isAddQAPending ? (
-                  "Adding Q&A..."
-                ) : (
-                  <>
-                    <PlusIcon className="h-4 w-4 mr-2" /> ADD Q&A
-                  </>
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  className="jupiter-button-dark flex-1 h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base"
+                  disabled={isAddQAPending || isUpdateQAPending || !newQuestion.trim() || !newAnswer.trim()}
+                >
+                  {isAddQAPending || isUpdateQAPending ? (
+                    editingQAId ? (
+                      "Updating Q&A..."
+                    ) : (
+                      "Adding Q&A..."
+                    )
+                  ) : (
+                    <>
+                      {editingQAId ? <SaveIcon className="h-4 w-4 mr-2" /> : <PlusIcon className="h-4 w-4 mr-2" />}
+                      {editingQAId ? "UPDATE Q&A" : "ADD Q&A"}
+                    </>
+                  )}
+                </Button>
+                {editingQAId && (
+                  <Button
+                    type="button"
+                    onClick={handleCancelEditQA}
+                    variant="ghost"
+                    className="h-10 px-4 text-muted-foreground hover:text-white"
+                    disabled={isAddQAPending || isUpdateQAPending}
+                  >
+                    Cancel Edit
+                  </Button>
                 )}
-              </Button>
+              </div>
             </form>
 
-            <h3 className="text-xl font-bold text-[#afcd4f] mt-8 mb-4 text-center">Existing Q&A Pairs</h3>
-            {isFetchingQAs ? (
-              <p className="text-center text-muted-foreground">Loading Q&A pairs...</p>
-            ) : trainingQAs.length === 0 ? (
-              <p className="text-center text-muted-foreground">No Q&A pairs added yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {trainingQAs.map((qa) => (
-                  <div
-                    key={qa.id}
-                    className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-white">
-                        <span className="text-[#afcd4f]">Q:</span> {qa.question}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        <span className="text-[#afcd4f]">A:</span> {qa.answer}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteQA(qa.id)}
-                      className="text-red-500 hover:bg-red-500/20 flex-shrink-0"
-                      aria-label={`Delete Q&A: ${qa.question}`}
-                    >
-                      <Trash2Icon className="h-4 w-4" />
-                    </Button>
+            <Collapsible className="w-full">
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 neumorphic-inset rounded-lg text-white font-semibold text-lg mb-4">
+                Existing Q&A Pairs
+                <ChevronDownIcon className="h-5 w-5 transition-transform data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4">
+                <div className="mb-4">
+                  <Input
+                    type="text"
+                    placeholder="Filter Q&A by question or answer..."
+                    value={qaFilterQuery}
+                    onChange={(e) => setQaFilterQuery(e.target.value)}
+                    className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                  />
+                </div>
+                {isFetchingQAs ? (
+                  <p className="text-center text-muted-foreground">Loading Q&A pairs...</p>
+                ) : filteredQAs.length === 0 ? (
+                  <p className="text-center text-muted-foreground">No Q&A pairs found matching your filter.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredQAs.map((qa) => (
+                      <div
+                        key={qa.id}
+                        className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-white">
+                            <span className="text-[#afcd4f]">Q:</span> {qa.question}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            <span className="text-[#afcd4f]">A:</span> {qa.answer}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0 mt-2 md:mt-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditQA(qa)}
+                            className="text-[#afcd4f] hover:bg-[#afcd4f]/20"
+                            aria-label={`Edit Q&A: ${qa.question}`}
+                          >
+                            <FileTextIcon className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteQA(qa.id)}
+                            className="text-red-500 hover:bg-red-500/20"
+                            aria-label={`Delete Q&A: ${qa.question}`}
+                          >
+                            <Trash2Icon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                )}
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
 
