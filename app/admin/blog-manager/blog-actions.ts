@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache"
 import { generateText } from "ai"
 import { createOpenAI, openai as textGenOpenai } from "@ai-sdk/openai"
 import slugify from "slugify" // Will need to infer this module
-import { picaModel } from "@/lib/pica-ai" // Import the Pica model
 
 interface BlogPost {
   id: string
@@ -45,7 +44,8 @@ async function fetchCurrentMetadata(): Promise<AllFileMetadata> {
   return { files: [] }
 }
 
-const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+// Moved initialization inside generateBlogPost for robust environment variable handling
+// const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
 export async function generateBlogPost(
   prevState: any,
@@ -65,26 +65,13 @@ export async function generateBlogPost(
     return { success: false, message: "Please provide a topic for the blog post." }
   }
 
-  // --- Configuration for AI Model ---
-  // Choose your preferred AI model here:
-  const usePicaAI = false // Set to `true` to use Pica AI, `false` to use OpenAI
-
-  let modelInstance: any // Type will be AIModel from @ai-sdk/openai or @picahq/ai
-  if (usePicaAI) {
-    if (!process.env.PICA_SECRET_KEY || !process.env.PICA_VERCEL_CONNECTOR_KEY) {
-      console.error("Pica AI environment variables are not set.")
-      return { success: false, message: "Server configuration error: Pica AI keys are missing." }
-    }
-    // Assuming 'blog-post-agent' is a valid model/agent name in PicaOS
-    modelInstance = picaModel("blog-post-agent")
-  } else {
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("OPENAI_API_KEY environment variable is not set.")
-      return { success: false, message: "Server configuration error: OpenAI API key is missing." }
-    }
-    modelInstance = textGenOpenai("gpt-4o")
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY environment variable is not set.")
+    return { success: false, message: "Server configuration error: OpenAI API key is missing." }
   }
-  // --- End AI Model Configuration ---
+
+  // Initialize openaiEmbeddings here, after the API key check
+  const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   let ragContext = ""
   try {
@@ -165,7 +152,7 @@ Remember to provide the output as a JSON object containing 'title', 'content' (i
 
   try {
     const { text } = await generateText({
-      model: modelInstance, // Use the selected model instance
+      model: textGenOpenai("gpt-4o"),
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0.7, // A bit creative

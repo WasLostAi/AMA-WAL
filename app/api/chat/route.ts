@@ -3,7 +3,6 @@ import type { NextRequest } from "next/server"
 import { createOpenAI, openai as textGenOpenai } from "@ai-sdk/openai"
 import { generateText } from "ai"
 import { supabaseAdmin } from "@/lib/supabase" // Import Supabase client
-import { picaModel } from "@/lib/pica-ai" // Import the Pica model
 
 // Add this line after imports and before the POST function
 const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
@@ -12,26 +11,10 @@ export async function POST(request: NextRequest) {
   try {
     const { message, history } = await request.json() // Destructure history
 
-    // --- Configuration for AI Model ---
-    // Choose your preferred AI model here:
-    const usePicaAI = false // Set to `true` to use Pica AI, `false` to use OpenAI
-
-    let modelInstance: any // Type will be AIModel from @ai-sdk/openai or @picahq/ai
-    if (usePicaAI) {
-      if (!process.env.PICA_SECRET_KEY || !process.env.PICA_VERCEL_CONNECTOR_KEY) {
-        console.error("Pica AI environment variables are not set.")
-        return NextResponse.json({ error: "Server configuration error: Pica AI keys are missing." }, { status: 500 })
-      }
-      // Assuming 'default-agent' is a valid model/agent name in PicaOS
-      modelInstance = picaModel("default-agent")
-    } else {
-      if (!process.env.OPENAI_API_KEY) {
-        console.error("OPENAI_API_KEY environment variable is not set.")
-        return NextResponse.json({ error: "Server configuration error: OpenAI API key is missing." }, { status: 500 })
-      }
-      modelInstance = textGenOpenai("gpt-4o")
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY environment variable is not set.")
+      return NextResponse.json({ error: "Server configuration error: OpenAI API key is missing." }, { status: 500 })
     }
-    // --- End AI Model Configuration ---
 
     // --- RAG: Retrieve relevant documents from Supabase ---
     let retrievedContext = ""
@@ -161,7 +144,7 @@ ${
     }))
 
     const { text } = await generateText({
-      model: modelInstance, // Use the selected model instance
+      model: textGenOpenai("gpt-4o"),
       system: systemPrompt,
       messages: formattedHistory, // Pass the formatted history
     })
