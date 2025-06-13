@@ -67,6 +67,16 @@ export async function generateBlogPost(
     return { success: false, message: "Server configuration error: OpenAI API key is missing." }
   }
 
+  // Defensive check for openai.embeddings
+  if (!openai.embeddings || typeof openai.embeddings.create !== "function") {
+    console.error("AI SDK OpenAI embeddings client is not properly initialized or available.")
+    console.error("DEBUG: openai object:", openai) // Log the openai object for debugging
+    return {
+      success: false,
+      message: "AI embeddings service is unavailable. Please check server logs and environment configuration.",
+    }
+  }
+
   let ragContext = ""
   try {
     const fileMetadata = await fetchCurrentMetadata()

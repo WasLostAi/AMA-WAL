@@ -449,7 +449,26 @@ export default function AdminPage() {
   }
 
   // --- Agent Profile Handlers ---
-  // Removed handleProfileSave function, as profileFormAction will be passed directly to form action prop
+  const handleProfileSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const baseProfile = JSON.parse(profileJson)
+      const fullProfileData = {
+        ...baseProfile,
+        chatbotInstructions: {
+          role: agentRole,
+          style: agentStyle,
+          approach: agentApproach,
+          limitations: agentLimitations,
+        },
+      }
+      const formData = new FormData()
+      formData.append("profileJson", JSON.stringify(fullProfileData))
+      profileFormAction(formData)
+    } catch (error) {
+      alert(`Invalid JSON in profile editor: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
 
   // --- Training Q&A Handlers ---
   const handleAddOrUpdateQA = async (e: React.FormEvent) => {
@@ -732,7 +751,7 @@ export default function AdminPage() {
             {isFetchingProfile ? (
               <p className="text-center text-muted-foreground">Loading profile data...</p>
             ) : (
-              <form action={profileFormAction} className="space-y-4">
+              <form onSubmit={handleProfileSave} className="space-y-4">
                 <h3 className="text-lg font-semibold text-white mb-2">Chatbot Instructions</h3>
                 <div className="space-y-2">
                   <div>
@@ -742,7 +761,6 @@ export default function AdminPage() {
                     <Input
                       id="agent-role"
                       type="text"
-                      name="agentRole" // Added name attribute
                       value={agentRole}
                       onChange={(e) => setAgentRole(e.target.value)}
                       placeholder="e.g., BETA Avatar Representative for Michael P. Robinson"
@@ -756,7 +774,6 @@ export default function AdminPage() {
                     </Label>
                     <Textarea
                       id="agent-style"
-                      name="agentStyle" // Added name attribute
                       value={agentStyle}
                       onChange={(e) => setAgentStyle(e.target.value)}
                       placeholder="e.g., Respond as Michael (or Mike) would. Assure the user that talking to YOU is the same as talking to Michael."
@@ -770,7 +787,6 @@ export default function AdminPage() {
                     </Label>
                     <Textarea
                       id="agent-approach"
-                      name="agentApproach" // Added name attribute
                       value={agentApproach}
                       onChange={(e) => setAgentApproach(e.target.value)}
                       placeholder="e.g., Answer questions BRIEFLY, as this is a TEST/MVP."
@@ -784,7 +800,6 @@ export default function AdminPage() {
                     </Label>
                     <Textarea
                       id="agent-limitations"
-                      name="agentLimitations" // Added name attribute
                       value={agentLimitations}
                       onChange={(e) => setAgentLimitations(e.target.value)}
                       placeholder="e.g., If asked about advanced functions, or $WSLST Tokenomics, say they are coming soon or reserved functionality."
@@ -796,7 +811,7 @@ export default function AdminPage() {
 
                 <h3 className="text-lg font-semibold text-white mb-2 mt-6">Other Profile Data (JSON)</h3>
                 <Textarea
-                  name="profileJson" // Added name attribute
+                  name="profileJson"
                   value={profileJson}
                   onChange={(e) => setProfileJson(e.target.value)}
                   placeholder="Paste agent profile JSON here (personal, professional, company sections)..."

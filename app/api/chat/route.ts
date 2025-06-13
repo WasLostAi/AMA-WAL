@@ -13,6 +13,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Server configuration error: OpenAI API key is missing." }, { status: 500 })
     }
 
+    // Defensive check for openai.embeddings
+    if (!openai.embeddings || typeof openai.embeddings.create !== "function") {
+      console.error("AI SDK OpenAI embeddings client is not properly initialized or available.")
+      console.error("DEBUG: openai object:", openai) // Log the openai object for debugging
+      return NextResponse.json(
+        { error: "AI embeddings service is unavailable. Please check server logs and environment configuration." },
+        { status: 500 },
+      )
+    }
+
     // --- RAG: Retrieve relevant documents from Supabase ---
     let retrievedContext = ""
     try {

@@ -47,26 +47,13 @@ export async function updateAgentProfileData(
   formData: FormData,
 ): Promise<{ success: boolean; message: string }> {
   const profileJsonString = formData.get("profileJson") as string
-  const agentRole = formData.get("agentRole") as string
-  const agentStyle = formData.get("agentStyle") as string
-  const agentApproach = formData.get("agentApproach") as string
-  const agentLimitations = formData.get("agentLimitations") as string
 
   if (!profileJsonString) {
     return { success: false, message: "No profile JSON provided." }
   }
 
   try {
-    const baseProfile = JSON.parse(profileJsonString)
-    const fullProfileData = {
-      ...baseProfile,
-      chatbotInstructions: {
-        role: agentRole,
-        style: agentStyle,
-        approach: agentApproach,
-        limitations: agentLimitations,
-      },
-    }
+    const profileData = JSON.parse(profileJsonString)
 
     // Attempt to update the existing single row.
     // If no row exists, insert it. This assumes the ID is known or we upsert.
@@ -86,12 +73,12 @@ export async function updateAgentProfileData(
     if (existingProfile) {
       const { error } = await supabaseAdmin
         .from("agent_profile")
-        .update({ profile_data: fullProfileData, updated_at: new Date().toISOString() })
+        .update({ profile_data: profileData, updated_at: new Date().toISOString() })
         .eq("id", existingProfile.id) // Update the existing row
       updateError = error
     } else {
       // If no profile exists, insert a new one.
-      const { error } = await supabaseAdmin.from("agent_profile").insert({ profile_data: fullProfileData })
+      const { error } = await supabaseAdmin.from("agent_profile").insert({ profile_data: profileData })
       updateError = error
     }
 
