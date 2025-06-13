@@ -9,19 +9,29 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { XIcon, Trash2Icon, SaveIcon, SparklesIcon, EditIcon, LinkIcon } from "lucide-react"
-
-import { generateBlogPost, saveBlogPost, getBlogPosts, deleteBlogPost, getBlogPostBySlugOrId } from "./blog-actions"
+import { Label } from "@/components/ui/label"
+import { XIcon, SparklesIcon, SaveIcon, Trash2Icon, FileTextIcon, SearchIcon } from "lucide-react"
+import { generateBlogPost, saveBlogPost, getBlogPosts, deleteBlogPost } from "./blog-actions"
+import { getFileMetadata } from "../content-manager/file-upload-actions" // To get available RAG tags
 
 interface BlogPost {
   id: string
-  slug: string
   title: string
+  slug: string
   content: string
-  description: string
-  tags: string[] | null
-  created_at: string
+  keywords: string[] | null
+  meta_description: string | null
+  status: "draft" | "published"
+  generated_at: string
   updated_at: string
+}
+
+interface FileMetadata {
+  fileName: string
+  filePath: string
+  tags: string[]
+  contentType: string
+  uploadedAt: string
 }
 
 export default function BlogManagerPage() {
@@ -33,31 +43,33 @@ export default function BlogManagerPage() {
     return connected && publicKey?.toBase58() === authorizedWalletAddress
   }, [connected, publicKey, authorizedWalletAddress])
 
-  // Generate Post State
+  // Blog Generation State
   const [topic, setTopic] = useState("")
-  const [keywords, setKeywords] = useState("")
-  const [style, setStyle] = useState("")
   const [generatedTitle, setGeneratedTitle] = useState("")
   const [generatedContent, setGeneratedContent] = useState("")
-  const [generatedDescription, setGeneratedDescription] = useState("")
-  const [generatedTags, setGeneratedTags] = useState("")
-  const [generatedSlug, setGeneratedSlug] = useState("")
+  const [generatedKeywords, setGeneratedKeywords] = useState<string[]>([])
+  const [generatedMetaDescription, setGeneratedMetaDescription] = useState("")
+  const [selectedTagsForGeneration, setSelectedTagsForGeneration] = useState<string[]>([])
+  const [availableRAGTags, setAvailableRAGTags] = useState<string[]>([]) // Tags from uploaded RAG files
 
-  const [generatePostState, generatePostFormAction, isGeneratingPost] = useActionState(generateBlogPost, {
+  const [generateState, generateFormAction, isGenerating] = useActionState(generateBlogPost, {
     success: false,
     message: "",
+    generatedContent: "",
+    generatedTitle: "",
+    generatedKeywords: [],
+    generatedMetaDescription: "",
   })
 
-  // Save Post State
-  const [currentEditPostId, setCurrentEditPostId] = useState<string | null>(null)
-  const [savePostState, savePostFormAction, isSavingPost] = useActionState(saveBlogPost, {
-    success: false,
-    message: "",
-  })
-
-  // List Posts State
+  // Blog Post Saving/Listing State
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
   const [isFetchingPosts, setIsFetchingPosts] = useState(true)
+  const [saveState, saveFormAction, isSaving] = useActionState(saveBlogPost, {
+    success: false,
+    message: "",
+  })
+
+  const [editingPostId, setEditingPostId] = useState<string | null>(null) // For editing existing posts
 
   useEffect(() => {
     if (!connected || !isAuthorized) {
@@ -65,130 +77,118 @@ export default function BlogManagerPage() {
     }
   }, [connected, isAuthorized, router])
 
-  // Handle Generate Post result
-  useEffect(() => {
-    if (generatePostState.message) {
-      alert(generatePostState.message)
-      if (generatePostState.success && generatePostState.generatedContent) {
-        setGeneratedTitle(generatePostState.generatedContent.title)
-        setGeneratedContent(generatePostState.generatedContent.content)
-        setGeneratedDescription(generatePostState.generatedContent.description)
-        setGeneratedTags(generatePostState.generatedContent.tags.join(", "))
-        setGeneratedSlug(generateSlug(generatePostState.generatedContent.title)) // Generate slug from title
-        setCurrentEditPostId(null) // Clear ID for new generation
-      }
-    }
-  }, [generatePostState])
-
-  // Handle Save Post result
-  useEffect(() => {
-    if (savePostState.message) {
-      alert(savePostState.message)
-      if (savePostState.success) {
-        // Clear generation fields after successful save
-        setTopic("")
-        setKeywords("")
-        setStyle("")
-        setGeneratedTitle("")
-        setGeneratedContent("")
-        setGeneratedDescription("")
-        setGeneratedTags("")
-        setGeneratedSlug("")
-        setCurrentEditPostId(null)
-        fetchBlogPosts() // Refresh the list of posts
-      }
-    }
-  }, [savePostState])
-
-  // Fetch Blog Posts
-  const fetchBlogPosts = useCallback(async () => {
+  // Fetch available RAG tags and existing blog posts on load
+  const fetchData = useCallback(async () => {
     setIsFetchingPosts(true)
-    const { data, message } = await getBlogPosts()
-    if (data) {
-      setBlogPosts(data)
-    } else {
-      console.error(message || "Failed to fetch blog posts.")
+    try {
+      const metadata = await getFileMetadata()
+      setAvailableRAGTags(Array.from(new Set(metadata.files.flatMap((f: FileMetadata) => f.tags))))
+
+      const { data: postsData, message: postsMessage } = await getBlogPosts()
+      if (postsData) {
+        setBlogPosts(postsData)
+      } else {
+        console.error(postsMessage || "Failed to fetch blog posts.")
+        alert(postsMessage || "Failed to fetch blog posts.")
+      }
+    } catch (error) {
+      console.error("Error fetching initial data:", error)
+      alert("Failed to fetch initial data.")
+    } finally {
+      setIsFetchingPosts(false)
     }
-    setIsFetchingPosts(false)
   }, [])
 
   useEffect(() => {
     if (isAuthorized) {
-      fetchBlogPosts()
+      fetchData()
     }
-  }, [isAuthorized, fetchBlogPosts])
+  }, [isAuthorized, fetchData])
 
-  const handleGenerate = async (e: React.FormEvent) => {
+  // Handle generation action state changes
+  useEffect(() => {
+    if (generateState.message) {
+      alert(generateState.message)
+      if (generateState.success) {
+        setGeneratedTitle(generateState.generatedTitle || "")
+        setGeneratedContent(generateState.generatedContent || "")
+        setGeneratedKeywords(generateState.generatedKeywords || [])
+        setGeneratedMetaDescription(generateState.generatedMetaDescription || "")
+      }
+    }
+  }, [generateState])
+
+  // Handle save action state changes
+  useEffect(() => {
+    if (saveState.message) {
+      alert(saveState.message)
+      if (saveState.success) {
+        // Clear generated content if a new post was saved
+        if (!editingPostId) {
+          setGeneratedTitle("")
+          setGeneratedContent("")
+          setGeneratedKeywords([])
+          setGeneratedMetaDescription("")
+          setTopic("") // Clear topic after successful save of new post
+          setSelectedTagsForGeneration([])
+        }
+        setEditingPostId(null) // Exit editing mode
+        fetchData() // Refresh list of posts
+      }
+    }
+  }, [saveState, editingPostId, fetchData])
+
+  const handleGeneratePost = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!topic.trim()) {
+      alert("Please enter a topic to generate a blog post.")
+      return
+    }
     const formData = new FormData()
     formData.append("topic", topic)
-    formData.append("keywords", keywords)
-    formData.append("style", style)
-    generatePostFormAction(formData)
+    formData.append("selectedTags", selectedTagsForGeneration.join(","))
+    generateFormAction(formData)
   }
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSavePost = (e: React.FormEvent) => {
     e.preventDefault()
     const formData = new FormData()
-    if (currentEditPostId) {
-      formData.append("id", currentEditPostId)
+    if (editingPostId) {
+      formData.append("id", editingPostId)
     }
     formData.append("title", generatedTitle)
     formData.append("content", generatedContent)
-    formData.append("description", generatedDescription)
-    formData.append("tags", generatedTags)
-    formData.append("slug", generatedSlug) // Pass the potentially edited slug
-    savePostFormAction(formData)
+    formData.append("keywords", generatedKeywords.join(", "))
+    formData.append("metaDescription", generatedMetaDescription)
+    // Default to 'draft' if no editing or status selection UI is present yet
+    formData.append("status", "draft") // For now, always save as draft
+    saveFormAction(formData)
   }
 
-  const handleEditPost = async (id: string) => {
-    setIsFetchingPosts(true) // Indicate loading while fetching a single post for edit
-    const { data, message } = await getBlogPostBySlugOrId(id)
-    if (data) {
-      setGeneratedTitle(data.title)
-      setGeneratedContent(data.content)
-      setGeneratedDescription(data.description)
-      setGeneratedTags(data.tags?.join(", ") || "")
-      setGeneratedSlug(data.slug)
-      setCurrentEditPostId(data.id) // Set the ID for update
-      setTopic("") // Clear generation inputs
-      setKeywords("")
-      setStyle("")
-      window.scrollTo({ top: 0, behavior: "smooth" }) // Scroll to the generation section
-    } else {
-      alert(message || "Failed to load blog post for editing.")
-    }
-    setIsFetchingPosts(false)
+  const handleEditPost = (post: BlogPost) => {
+    setEditingPostId(post.id)
+    setGeneratedTitle(post.title)
+    setGeneratedContent(post.content)
+    setGeneratedKeywords(post.keywords || [])
+    setGeneratedMetaDescription(post.meta_description || "")
+    // Clear topic and selected tags as we are editing an existing post, not generating new
+    setTopic("")
+    setSelectedTagsForGeneration([])
+    window.scrollTo({ top: 0, behavior: "smooth" }) // Scroll to top for editing form
   }
 
-  const handleDeletePost = async (id: string, title: string) => {
-    if (confirm(`Are you sure you want to delete the blog post "${title}"?`)) {
+  const handleDeletePost = async (id: string) => {
+    if (confirm("Are you sure you want to delete this blog post?")) {
       const { success, message } = await deleteBlogPost(id)
       alert(message)
       if (success) {
-        fetchBlogPosts() // Refresh the list
-        // If the deleted post was currently being edited, clear the editor
-        if (currentEditPostId === id) {
-          setGeneratedTitle("")
-          setGeneratedContent("")
-          setGeneratedDescription("")
-          setGeneratedTags("")
-          setGeneratedSlug("")
-          setCurrentEditPostId(null)
-        }
+        fetchData() // Refresh list
       }
     }
   }
 
-  // Helper to generate a SEO-friendly slug (local to UI for preview)
-  const generateSlug = (title: string): string => {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "") // Remove non-alphanumeric characters except spaces and hyphens
-      .trim()
-      .replace(/\s+/g, "-") // Replace spaces with hyphens
-      .replace(/-+/g, "-") // Replace multiple hyphens with a single hyphen
-      .substring(0, 60) // Limit length
+  const handleTagSelection = (tag: string) => {
+    setSelectedTagsForGeneration((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
   }
 
   if (!connected || !isAuthorized) {
@@ -212,65 +212,69 @@ export default function BlogManagerPage() {
           </Button>
         </div>
 
-        {/* Generate Blog Post Card */}
+        {/* Blog Post Generation Card */}
         <Card className="w-full jupiter-outer-panel p-6">
           <CardHeader>
             <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">AI Blog Post Generator</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4 text-center">
-              Generate new blog posts using AI, powered by your uploaded RAG documents.
+              Generate a blog post by providing a topic and optionally selecting relevant RAG tags.
             </p>
-            <form onSubmit={handleGenerate} className="space-y-4">
+            <form onSubmit={handleGeneratePost} className="space-y-4">
               <div>
-                <label htmlFor="topic" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Topic <span className="text-red-500">*</span>
-                </label>
+                <Label htmlFor="topic" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Blog Post Topic
+                </Label>
                 <Input
                   id="topic"
                   type="text"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  placeholder="e.g., The future of AI in Web3 gaming"
+                  placeholder="e.g., The Future of Decentralized AI"
                   className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isGeneratingPost}
+                  disabled={isGenerating}
                   required
                 />
               </div>
+
               <div>
-                <label htmlFor="keywords" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Keywords (comma-separated, optional)
-                </label>
-                <Input
-                  id="keywords"
-                  type="text"
-                  value={keywords}
-                  onChange={(e) => setKeywords(e.target.value)}
-                  placeholder="e.g., blockchain, decentralization, agentic-AI"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isGeneratingPost}
-                />
+                <Label className="block text-sm font-medium text-muted-foreground mb-1">
+                  Relevant RAG Tags (Optional)
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {availableRAGTags.length === 0 && !isFetchingPosts ? (
+                    <span className="text-xs text-muted-foreground">
+                      No RAG tags available. Upload files with tags in Content Manager.
+                    </span>
+                  ) : (
+                    availableRAGTags.map((tag) => (
+                      <Button
+                        key={tag}
+                        type="button"
+                        variant={selectedTagsForGeneration.includes(tag) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleTagSelection(tag)}
+                        className={`neumorphic-base text-sm px-3 py-1 rounded-full ${
+                          selectedTagsForGeneration.includes(tag)
+                            ? "bg-[#2ed3b7] text-white hover:bg-[#c7f284] hover:text-black"
+                            : "bg-neumorphic-light text-muted-foreground hover:bg-neumorphic-base"
+                        }`}
+                        disabled={isGenerating}
+                      >
+                        {tag}
+                      </Button>
+                    ))
+                  )}
+                </div>
               </div>
-              <div>
-                <label htmlFor="style" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Writing Style (optional)
-                </label>
-                <Input
-                  id="style"
-                  type="text"
-                  value={style}
-                  onChange={(e) => setStyle(e.target.value)}
-                  placeholder="e.g., technical, informal, thought-provoking"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isGeneratingPost}
-                />
-              </div>
+
               <Button
                 type="submit"
                 className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
-                disabled={isGeneratingPost || !topic.trim()}
+                disabled={isGenerating || !topic.trim()}
               >
-                {isGeneratingPost ? (
+                {isGenerating ? (
                   "Generating..."
                 ) : (
                   <>
@@ -279,121 +283,71 @@ export default function BlogManagerPage() {
                 )}
               </Button>
             </form>
-          </CardContent>
-        </Card>
 
-        {/* Generated/Edit Blog Post Section */}
-        {(generatedContent || currentEditPostId) && (
-          <Card className="w-full jupiter-outer-panel p-6 mt-8">
-            <CardHeader>
-              <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">
-                {currentEditPostId ? "Edit Blog Post" : "Review & Edit Generated Post"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4 text-center">
-                Review, edit, and save the generated content. This will be stored in your database.
-              </p>
-              <form onSubmit={handleSave} className="space-y-4">
-                <div>
-                  <label htmlFor="post-title" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Title <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    id="post-title"
-                    type="text"
-                    value={generatedTitle}
-                    onChange={(e) => {
-                      setGeneratedTitle(e.target.value)
-                      setGeneratedSlug(generateSlug(e.target.value)) // Auto-update slug on title change
-                    }}
-                    placeholder="Blog Post Title"
-                    className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                    disabled={isSavingPost}
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="post-slug" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Slug <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    id="post-slug"
-                    type="text"
-                    value={generatedSlug}
-                    onChange={(e) => setGeneratedSlug(e.target.value)}
-                    placeholder="seo-friendly-url-slug"
-                    className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                    disabled={isSavingPost}
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="post-description" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Meta Description <span className="text-red-500">*</span>
-                  </label>
-                  <Textarea
-                    id="post-description"
-                    value={generatedDescription}
-                    onChange={(e) => setGeneratedDescription(e.target.value)}
-                    placeholder="A concise summary for search engines (max 160 characters)"
-                    className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
-                    disabled={isSavingPost}
-                    maxLength={160}
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="post-tags" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Tags (comma-separated)
-                  </label>
-                  <Input
-                    id="post-tags"
-                    type="text"
-                    value={generatedTags}
-                    onChange={(e) => setGeneratedTags(e.target.value)}
-                    placeholder="e.g., ai, web3, blockchain, trading-automation"
-                    className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                    disabled={isSavingPost}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="post-content" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Content (Markdown) <span className="text-red-500">*</span>
-                  </label>
-                  <Textarea
-                    id="post-content"
-                    value={generatedContent}
-                    onChange={(e) => setGeneratedContent(e.target.value)}
-                    placeholder="Generated blog post content in Markdown..."
-                    className="min-h-[400px] bg-neumorphic-base shadow-inner-neumorphic text-white p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#afcd4f] font-mono text-sm"
-                    disabled={isSavingPost}
-                    required
-                  />
-                </div>
+            {(generatedTitle || generatedContent) && (
+              <div className="mt-8 p-4 neumorphic-inset rounded-lg">
+                <h3 className="text-lg font-semibold text-white mb-2">Generated Content Preview</h3>
+                <Input
+                  className="bg-neumorphic-base shadow-inner-neumorphic text-white mb-2"
+                  value={generatedTitle}
+                  onChange={(e) => setGeneratedTitle(e.target.value)}
+                  placeholder="Generated Title"
+                  disabled={isSaving}
+                />
+                <Textarea
+                  className="min-h-[300px] bg-neumorphic-base shadow-inner-neumorphic text-white font-mono text-sm mb-2"
+                  value={generatedContent}
+                  onChange={(e) => setGeneratedContent(e.target.value)}
+                  placeholder="Generated Markdown Content"
+                  disabled={isSaving}
+                />
+                <Input
+                  className="bg-neumorphic-base shadow-inner-neumorphic text-white mb-2"
+                  value={generatedKeywords.join(", ")}
+                  onChange={(e) => setGeneratedKeywords(e.target.value.split(",").map((k) => k.trim()))}
+                  placeholder="Generated Keywords (comma-separated)"
+                  disabled={isSaving}
+                />
+                <Textarea
+                  className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white mb-2"
+                  value={generatedMetaDescription}
+                  onChange={(e) => setGeneratedMetaDescription(e.target.value)}
+                  placeholder="Generated Meta Description (max 160 chars)"
+                  disabled={isSaving}
+                  maxLength={160}
+                />
                 <Button
-                  type="submit"
-                  className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
-                  disabled={
-                    isSavingPost ||
-                    !generatedTitle.trim() ||
-                    !generatedContent.trim() ||
-                    !generatedDescription.trim() ||
-                    !generatedSlug.trim()
-                  }
+                  onClick={handleSavePost}
+                  className="jupiter-button-dark w-full h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base"
+                  disabled={isSaving || !generatedTitle.trim() || !generatedContent.trim()}
                 >
-                  {isSavingPost ? (
-                    "Saving Post..."
+                  {isSaving ? (
+                    "Saving..."
                   ) : (
                     <>
-                      <SaveIcon className="h-4 w-4 mr-2" /> {currentEditPostId ? "UPDATE POST" : "SAVE NEW POST"}
+                      <SaveIcon className="h-4 w-4 mr-2" /> {editingPostId ? "UPDATE POST" : "SAVE NEW POST"}
                     </>
                   )}
                 </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+                {editingPostId && (
+                  <Button
+                    onClick={() => {
+                      setEditingPostId(null)
+                      setGeneratedTitle("")
+                      setGeneratedContent("")
+                      setGeneratedKeywords([])
+                      setGeneratedMetaDescription("")
+                    }}
+                    variant="ghost"
+                    className="w-full mt-2 text-muted-foreground hover:text-white"
+                  >
+                    Cancel Edit
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Existing Blog Posts List */}
         <Card className="w-full jupiter-outer-panel p-6 mt-8">
@@ -404,7 +358,7 @@ export default function BlogManagerPage() {
             {isFetchingPosts ? (
               <p className="text-center text-muted-foreground">Loading blog posts...</p>
             ) : blogPosts.length === 0 ? (
-              <p className="text-center text-muted-foreground">No blog posts found yet.</p>
+              <p className="text-center text-muted-foreground">No blog posts generated yet.</p>
             ) : (
               <div className="space-y-3">
                 {blogPosts.map((post) => (
@@ -414,37 +368,39 @@ export default function BlogManagerPage() {
                   >
                     <div className="flex-1">
                       <p className="text-sm font-medium text-white">{post.title}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Slug: `{post.slug}`</p>
-                      <p className="text-xs text-muted-foreground">Tags: {post.tags?.join(", ") || "No tags"}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Last Updated: {new Date(post.updated_at).toLocaleString()}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Status:{" "}
+                        <span className={post.status === "published" ? "text-[#2ed3b7]" : "text-yellow-500"}>
+                          {post.status}
+                        </span>{" "}
+                        | Generated: {new Date(post.generated_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleEditPost(post.id)}
+                        onClick={() => router.push(`/blog/${post.slug}`)}
+                        className="text-muted-foreground hover:bg-muted-foreground/20"
+                        aria-label={`View blog post: ${post.title}`}
+                      >
+                        <SearchIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditPost(post)}
                         className="text-[#afcd4f] hover:bg-[#afcd4f]/20"
-                        aria-label={`Edit ${post.title}`}
+                        aria-label={`Edit blog post: ${post.title}`}
                       >
-                        <EditIcon className="h-4 w-4" />
+                        <FileTextIcon className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => window.open(`/blog/${post.slug}`, "_blank")}
-                        className="text-blue-400 hover:bg-blue-400/20"
-                        aria-label={`View ${post.title}`}
-                      >
-                        <LinkIcon className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeletePost(post.id, post.title)}
+                        onClick={() => handleDeletePost(post.id)}
                         className="text-red-500 hover:bg-red-500/20"
-                        aria-label={`Delete ${post.title}`}
+                        aria-label={`Delete blog post: ${post.title}`}
                       >
                         <Trash2Icon className="h-4 w-4" />
                       </Button>
