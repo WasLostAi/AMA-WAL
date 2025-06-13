@@ -135,30 +135,32 @@ export async function GET(request: Request) {
       prompt: prompt,
     })
 
-    let rawJsonString = text.trim()
+    const rawAiResponse = text.trim()
 
-    // Strip Markdown code block wrappers
-    if (rawJsonString.startsWith("```json")) {
-      rawJsonString = rawJsonString.substring("```json".length)
+    // Robust JSON extraction: find the first '[' and last ']' for an array
+    const jsonStartIndex = rawAiResponse.indexOf("[")
+    const jsonEndIndex = rawAiResponse.lastIndexOf("]")
+
+    if (jsonStartIndex === -1 || jsonEndIndex === -1 || jsonEndIndex < jsonStartIndex) {
+      throw new Error("AI response did not contain a valid JSON array.")
     }
-    if (rawJsonString.endsWith("```")) {
-      rawJsonString = rawJsonString.substring(0, rawJsonString.length - "```".length)
-    }
-    rawJsonString = rawJsonString.trim()
+
+    const extractedJsonString = rawAiResponse.substring(jsonStartIndex, jsonEndIndex + 1)
 
     let generatedPosts: any[] = []
     try {
-      generatedPosts = JSON.parse(rawJsonString)
+      generatedPosts = JSON.parse(extractedJsonString)
       if (!Array.isArray(generatedPosts) || generatedPosts.some((p) => !p.headline || !p.content)) {
         throw new Error("AI response was not a valid array of post objects or missing required fields.")
       }
     } catch (parseError) {
       console.error(`Failed to parse AI generated text as JSON for ${type} posts:`, parseError)
-      console.error("AI raw response (after stripping):", rawJsonString)
+      console.error("AI raw response (after stripping):", rawAiResponse)
+      console.error("Extracted JSON attempt:", extractedJsonString)
       return NextResponse.json(
         {
           error: `Failed to generate valid ${type} posts from AI. AI response format was unexpected.`,
-          details: rawJsonString,
+          details: rawAiResponse,
         },
         { status: 500 },
       )

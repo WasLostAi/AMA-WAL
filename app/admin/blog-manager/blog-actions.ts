@@ -141,8 +141,8 @@ export async function generateBlogPost(
   ${ragContext ? `Here is additional context from relevant documents:\n\n${ragContext}\n\n` : ""}
   Remember to provide the output as a JSON object containing 'title', 'content' (in Markdown), 'keywords' (array), and 'meta_description'.`
 
-  let rawJsonString: string | undefined
-  let aiResponseText: string | undefined
+  let rawAiResponse: string | undefined
+  let extractedJsonString: string | undefined
 
   try {
     const { text } = await generateText({
@@ -153,17 +153,19 @@ export async function generateBlogPost(
       max_tokens: 3000, // Sufficient for a blog post
     })
 
-    aiResponseText = text
-    rawJsonString = aiResponseText.trim()
-    if (rawJsonString.startsWith("```json")) {
-      rawJsonString = rawJsonString.substring("```json".length)
-    }
-    if (rawJsonString.endsWith("```")) {
-      rawJsonString = rawJsonString.substring(0, rawJsonString.length - "```".length)
-    }
-    rawJsonString = rawJsonString.trim()
+    rawAiResponse = text.trim()
 
-    const generatedData = JSON.parse(rawJsonString)
+    // Robust JSON extraction: find the first '{' and last '}'
+    const jsonStartIndex = rawAiResponse.indexOf("{")
+    const jsonEndIndex = rawAiResponse.lastIndexOf("}")
+
+    if (jsonStartIndex === -1 || jsonEndIndex === -1 || jsonEndIndex < jsonStartIndex) {
+      throw new Error("AI response did not contain a valid JSON object.")
+    }
+
+    extractedJsonString = rawAiResponse.substring(jsonStartIndex, jsonEndIndex + 1)
+
+    const generatedData = JSON.parse(extractedJsonString)
 
     if (!generatedData.title || !generatedData.content) {
       throw new Error("AI response missing required 'title' or 'content' fields.")
@@ -181,7 +183,7 @@ export async function generateBlogPost(
     console.error("Error generating blog post with AI:", error)
     return {
       success: false,
-      message: `Failed to generate blog post: ${error instanceof Error ? error.message : String(error)}. Raw AI response: ${rawJsonString || aiResponseText}`,
+      message: `Failed to generate blog post: ${error instanceof Error ? error.message : String(error)}. Raw AI response: ${rawAiResponse || "N/A"}. Extracted JSON attempt: ${extractedJsonString || "N/A"}`,
     }
   }
 }
