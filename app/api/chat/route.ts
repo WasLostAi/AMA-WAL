@@ -43,17 +43,16 @@ export async function POST(request: NextRequest) {
     // Fetch agent profile data from Supabase
     let chatbotData: any = {}
     try {
-      // Use .maybeSingle() to handle cases where no row is found without throwing an error
+      // Use .limit(1) to ensure only one row is ever considered, even if multiple exist
       const { data: profileData, error: profileError } = await supabaseAdmin
         .from("agent_profile")
         .select("profile_data")
-        .maybeSingle() // Changed from .single()
+        .limit(1) // Added .limit(1)
+        .maybeSingle()
 
       if (profileError) {
         console.error("Error fetching agent profile from Supabase:", profileError)
-        // If the table doesn't exist, return a specific JSON error
         if (profileError.code === "42P01") {
-          // PostgreSQL error code for "undefined_table"
           return NextResponse.json(
             {
               error: "Database table 'agent_profile' not found. Please run the SQL seed script.",
@@ -62,7 +61,6 @@ export async function POST(request: NextRequest) {
             { status: 500 },
           )
         }
-        // For other Supabase errors, log and proceed with fallback data
         console.warn("Using fallback chatbot data due to Supabase fetch error:", profileError.message)
       }
 
@@ -70,7 +68,6 @@ export async function POST(request: NextRequest) {
         console.warn("No agent profile data found in Supabase. Using fallback data.")
       }
 
-      // Use fetched data or fallback
       chatbotData = profileData?.profile_data || {
         personal: { name: "Michael P. Robinson", nickname: "Mike", mission: "empower through AI" },
         professional: { currentRole: "AI Developer", skills: ["AI", "Web3"], keyAchievements: [] },
@@ -78,7 +75,6 @@ export async function POST(request: NextRequest) {
       }
     } catch (dbFetchError) {
       console.error("Unexpected error during Supabase profile fetch:", dbFetchError)
-      // Ensure chatbotData is initialized even on unexpected errors
       chatbotData = {
         personal: { name: "Michael P. Robinson", nickname: "Mike", mission: "empower through AI" },
         professional: { currentRole: "AI Developer", skills: ["AI", "Web3"], keyAchievements: [] },
@@ -94,7 +90,6 @@ export async function POST(request: NextRequest) {
 
     if (trainingError) {
       console.error("Error fetching training data from Supabase:", trainingError)
-      // Continue without training data if there's an error, or return an error if critical
     }
 
     const systemPrompt = `You are Michael Robinson's AI representative for WasLost.Ai.
