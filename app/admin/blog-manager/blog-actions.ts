@@ -3,8 +3,8 @@
 import { supabaseAdmin } from "@/lib/supabase"
 import { revalidatePath } from "next/cache"
 import { generateText } from "ai"
-import { createOpenAI, openai as textGenOpenai } from "@ai-sdk/openai"
-import slugify from "slugify" // Will need to infer this module
+import { openai } from "@ai-sdk/openai" // Use the default openai export directly
+import slugify from "slugify"
 
 interface BlogPost {
   id: string
@@ -44,9 +44,6 @@ async function fetchCurrentMetadata(): Promise<AllFileMetadata> {
   return { files: [] }
 }
 
-// Moved initialization inside generateBlogPost for robust environment variable handling
-// const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-
 export async function generateBlogPost(
   prevState: any,
   formData: FormData,
@@ -69,9 +66,6 @@ export async function generateBlogPost(
     console.error("OPENAI_API_KEY environment variable is not set.")
     return { success: false, message: "Server configuration error: OpenAI API key is missing." }
   }
-
-  // Initialize openaiEmbeddings here, after the API key check
-  const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   let ragContext = ""
   try {
@@ -107,7 +101,8 @@ export async function generateBlogPost(
 
     // Fallback to embedding search if no context from tags or no tags were selected
     if (!ragContext) {
-      const { embedding } = await openaiEmbeddings.embeddings.create({
+      // Use the default 'openai' export for embeddings
+      const { embedding } = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: topic,
       })
@@ -152,7 +147,7 @@ Remember to provide the output as a JSON object containing 'title', 'content' (i
 
   try {
     const { text } = await generateText({
-      model: textGenOpenai("gpt-4o"),
+      model: openai("gpt-4o"), // Use the default 'openai' export for text generation
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0.7, // A bit creative
