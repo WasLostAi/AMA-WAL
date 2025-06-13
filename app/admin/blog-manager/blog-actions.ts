@@ -69,7 +69,6 @@ export async function generateBlogPost(
 
   let ragContext = ""
   try {
-    // 1. Fetch relevant RAG document paths based on selected tags (if any) or topic itself
     const fileMetadata = await fetchCurrentMetadata()
     let relevantFilePaths: string[] = []
 
@@ -83,55 +82,43 @@ export async function generateBlogPost(
         .map((file) => file.filePath)
     }
 
-    // Fallback: If no tags, or if tags didn't yield files,
-    // generate embedding for the topic and search the 'documents' table directly
-    if (relevantFilePaths.length === 0) {
+    if (relevantFilePaths.length > 0) {
+      // If relevant files were found by tags, fetch their content from the 'documents' table
+      const { data: documentsByPath, error: dbErrorByPath } = await supabaseAdmin
+        .from("documents")
+        .select("content")
+        .in("file_path", relevantFilePaths)
+
+      if (dbErrorByPath) {
+        console.error("Error querying Supabase for RAG documents by file_path:", dbErrorByPath)
+      } else if (documentsByPath && documentsByPath.length > 0) {
+        ragContext = documentsByPath.map((doc: any) => doc.content).join("\n\n")
+        console.log(
+          `Retrieved ${documentsByPath.length} relevant document chunks for blog generation via selected tags.`,
+        )
+      }
+    }
+
+    // Fallback to embedding search if no context from tags or no tags were selected
+    if (!ragContext) {
       const { embedding } = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: topic,
       })
 
-      const { data: documents, error: dbError } = await supabaseAdmin.rpc("match_documents", {
+      const { data: documentsByEmbedding, error: dbErrorByEmbedding } = await supabaseAdmin.rpc("match_documents", {
         query_embedding: embedding,
         match_threshold: 0.5,
         match_count: 5,
       })
 
-      if (dbError) {
-        console.error("Error querying Supabase for RAG documents for blog generation:", dbError)
-      } else if (documents && documents.length > 0) {
-        ragContext = documents.map((doc: any) => doc.content).join("\n\n")
-        console.log(`Retrieved ${documents.length} relevant document chunks for blog generation via RAG.`)
-      }
-    } else {
-      // If relevant files were found by tags, fetch their content
-      for (const filePath of relevantFilePaths) {
-        // This is a simplified approach. In a real scenario, you'd fetch the document content
-        // from the `documents` table directly by `file_path` to avoid re-parsing.
-        // For now, assuming `documents` table has content, we'd query it.
-        // Since we don't have a direct "get content by file_path" in RAG yet,
-        // and processFileForRAG just adds to Supabase, we'll use the embedding lookup for now.
-        // To properly use tag-selected files for RAG, the `documents` table needs to be queried by file_path.
-        // For this step, I'll rely on the embedding search for context.
-      }
-      // Revert to embedding search if tag-based retrieval is not fully integrated yet
-      // To ensure RAG works, I'll rely on the existing `match_documents` RPC for context.
-      const { embedding } = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: topic,
-      })
-
-      const { data: documents, error: dbError } = await supabaseAdmin.rpc("match_documents", {
-        query_embedding: embedding,
-        match_threshold: 0.5,
-        match_count: 5,
-      })
-
-      if (dbError) {
-        console.error("Error querying Supabase for RAG documents for blog generation:", dbError)
-      } else if (documents && documents.length > 0) {
-        ragContext = documents.map((doc: any) => doc.content).join("\n\n")
-        console.log(`Retrieved ${documents.length} relevant document chunks for blog generation via RAG (fallback).`)
+      if (dbErrorByEmbedding) {
+        console.error("Error querying Supabase for RAG documents via embedding search:", dbErrorByEmbedding)
+      } else if (documentsByEmbedding && documentsByEmbedding.length > 0) {
+        ragContext = documentsByEmbedding.map((doc: any) => doc.content).join("\n\n")
+        console.log(
+          `Retrieved ${documentsByEmbedding.length} relevant document chunks for blog generation via embedding search (fallback).`,
+        )
       }
     }
   } catch (ragError) {
