@@ -5,24 +5,14 @@ import { useCallback, useEffect } from "react"
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Link from "@tiptap/extension-link"
-import Markdown from "@tiptap/extension-markdown" // For Markdown input/output
+// Remove the import for the problematic extension
+//- import Markdown from "@tiptap/extension-markdown" // For Markdown input/output
+// Add imports for client-side Markdown/HTML conversion libraries
+import TurndownService from "turndown"
+import { marked } from "marked"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import {
-  BoldIcon,
-  ItalicIcon,
-  ListIcon,
-  ListOrderedIcon,
-  Heading2Icon,
-  Heading3Icon,
-  LinkIcon,
-  UnlinkIcon,
-  CodeIcon,
-  QuoteIcon,
-  MinusIcon,
-  RedoIcon,
-  UndoIcon,
-} from "lucide-react"
+import { BoldIcon, ItalicIcon, ListIcon, ListOrderedIcon, Heading2Icon, Heading3Icon, LinkIcon, UnlinkIcon, CodeIcon, QuoteIcon, MinusIcon, RedoIcon, UndoIcon } from 'lucide-react'
 
 interface RichTextEditorProps {
   value: string
@@ -53,7 +43,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, disabl
           rel: "noopener noreferrer nofollow", // Add nofollow for SEO
         },
       }),
-      Markdown, // Enable Markdown input/output
+      // In the `useEditor` hook, remove `Markdown` from the `extensions` array
+      // Find the `extensions` array and remove the `Markdown,` line:
+      //-   Markdown, // Enable Markdown input/output
     ],
     content: value, // Initial content from prop
     editorProps: {
@@ -68,19 +60,24 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, disabl
         ),
       },
     },
+    // Update the `onUpdate` callback to use `turndown` for Markdown output
+    // Find the `onUpdate` function:
     onUpdate: ({ editor }) => {
       // Get Markdown content and pass it to onChange
-      onChange(editor.storage.markdown.getMarkdown())
+      //-   onChange(editor.storage.markdown.getMarkdown())
+      onChange(new TurndownService().turndown(editor.getHTML()))
     },
     editable: !disabled,
   })
 
-  // Effect to update editor content when `value` prop changes (e.g., after AI generation or loading existing post)
+  // Update the `useEffect` hook that syncs the `value` prop with the editor
+  // Find the `useEffect` hook that starts with `useEffect(() => {`
   useEffect(() => {
-    if (editor && editor.getHTML() !== editor.storage.markdown.parse(value)) {
+    if (editor && editor.getHTML() !== marked.parse(value)) { // Compare HTML with parsed Markdown
       // Only update if the external value is different from current editor content
       // This prevents infinite loops if onChange also updates the value prop
-      editor.commands.setContent(value, false, { preserveCursor: true })
+      //-     editor.commands.setContent(value, false, { preserveCursor: true })
+      editor.commands.setContent(marked.parse(value), false, { preserveCursor: true })
     }
   }, [value, editor])
 
