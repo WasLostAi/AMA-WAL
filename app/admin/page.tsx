@@ -192,10 +192,16 @@ export default function AdminPage() {
       setAgentStyle(chatbotInstructions?.style || "")
       setAgentApproach(chatbotInstructions?.approach || "")
       setAgentLimitations(chatbotInstructions?.limitations || "")
-      // Set the rest of the profile JSON to the textarea
-      setProfileJson(JSON.stringify(restOfProfile, null, 2))
+      // Set the rest of the profile JSON to the textarea, ensuring it's an object
+      setProfileJson(JSON.stringify(restOfProfile || {}, null, 2))
     } else {
       console.error(message || "Failed to fetch agent profile.")
+      // Default to empty JSON object string and clear chatbot instruction states if no data
+      setProfileJson("{}")
+      setAgentRole("")
+      setAgentStyle("")
+      setAgentApproach("")
+      setAgentLimitations("")
     }
     setIsFetchingProfile(false)
   }, [])
