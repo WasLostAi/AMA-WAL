@@ -2,14 +2,13 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createOpenAI, openai as textGenOpenai } from "@ai-sdk/openai"
 import { generateText } from "ai"
-import { supabaseAdmin } from "@/lib/supabase" // Import Supabase client
+import { supabaseAdmin } from "@/lib/supabase"
 
-// Add this line after imports and before the POST function
 const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, history } = await request.json() // Destructure history
+    const { message, history } = await request.json()
 
     if (!process.env.OPENAI_API_KEY) {
       console.error("OPENAI_API_KEY environment variable is not set.")
@@ -19,17 +18,15 @@ export async function POST(request: NextRequest) {
     // --- RAG: Retrieve relevant documents from Supabase ---
     let retrievedContext = ""
     try {
-      // 1. Generate embedding for the user's current message
       const { embedding } = await openaiEmbeddings.embeddings.create({
         model: "text-embedding-3-small",
         input: message,
       })
 
-      // 2. Query Supabase for semantically similar document chunks
       const { data: documents, error: dbError } = await supabaseAdmin.rpc("match_documents", {
         query_embedding: embedding,
-        match_threshold: 0.5, // Adjust this threshold as needed (0.7-0.8 is common for cosine similarity)
-        match_count: 5, // Retrieve top 5 most relevant chunks
+        match_threshold: 0.5,
+        match_count: 5,
       })
 
       if (dbError) {
@@ -40,17 +37,15 @@ export async function POST(request: NextRequest) {
       }
     } catch (ragError) {
       console.error("Error during RAG retrieval process:", ragError)
-      // Continue without RAG context if there's an error
     }
 
     // Fetch agent profile data from Supabase
     let chatbotData: any = {}
     try {
-      // Use .limit(1) to ensure only one row is ever considered, even if multiple exist
       const { data: profileData, error: profileError } = await supabaseAdmin
         .from("agent_profile")
         .select("profile_data")
-        .limit(1) // Added .limit(1)
+        .limit(1)
         .maybeSingle()
 
       if (profileError) {
@@ -75,6 +70,16 @@ export async function POST(request: NextRequest) {
         personal: { name: "Michael P. Robinson", nickname: "Mike", mission: "empower through AI" },
         professional: { currentRole: "AI Developer", skills: ["AI", "Web3"], keyAchievements: [] },
         company: { name: "WasLost LLC", product: "WasLost.Ai", description: "AI agent ecosystem", projects: [] },
+        chatbotInstructions: {
+          role: "BETA Avatar Representative for Michael P. Robinson",
+          style:
+            "Respond as Michael (or Mike) would. Assure the user that talking to YOU is the same as talking to Michael.",
+          approach: "Answer questions BRIEFLY, as this is a TEST/MVP.",
+          limitations:
+            "If asked about advanced functions, or $WSLST Tokenomics, say they are coming soon or reserved functionality.",
+          initialGreeting:
+            "Hello, I'm Michael Robinson's AI representative. I'm here to provide insights into his professional background and the innovative work at WasLost.Ai. How can I assist you?",
+        },
       }
     } catch (dbFetchError) {
       console.error("Unexpected error during Supabase profile fetch:", dbFetchError)
@@ -82,6 +87,16 @@ export async function POST(request: NextRequest) {
         personal: { name: "Michael P. Robinson", nickname: "Mike", mission: "empower through AI" },
         professional: { currentRole: "AI Developer", skills: ["AI", "Web3"], keyAchievements: [] },
         company: { name: "WasLost LLC", product: "WasLost.Ai", description: "AI agent ecosystem", projects: [] },
+        chatbotInstructions: {
+          role: "BETA Avatar Representative for Michael P. Robinson",
+          style:
+            "Respond as Michael (or Mike) would. Assure the user that talking to YOU is the same as talking to Michael.",
+          approach: "Answer questions BRIEFLY, as this is a TEST/MVP.",
+          limitations:
+            "If asked about advanced functions, or $WSLST Tokenomics, say they are coming soon or reserved functionality.",
+          initialGreeting:
+            "Hello, I'm Michael Robinson's AI representative. I'm here to provide insights into his professional background and the innovative work at WasLost.Ai. How can I assist you?",
+        },
       }
       console.warn("Using fallback chatbot data due to unexpected error during Supabase fetch.")
     }
@@ -137,7 +152,6 @@ ${
 }
 `
 
-    // Format history for the AI SDK
     const formattedHistory = history.map((msg: { role: string; content: string }) => ({
       role: msg.role,
       content: msg.content,
@@ -146,7 +160,7 @@ ${
     const { text } = await generateText({
       model: textGenOpenai("gpt-4o"),
       system: systemPrompt,
-      messages: formattedHistory, // Pass the formatted history
+      messages: formattedHistory,
     })
 
     const response = {

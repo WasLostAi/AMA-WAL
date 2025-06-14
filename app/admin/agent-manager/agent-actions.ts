@@ -2,12 +2,33 @@
 
 import { supabaseAdmin } from "@/lib/supabase"
 import { revalidatePath } from "next/cache"
+import { put } from "@vercel/blob" // Import put for image uploads
 
 interface AgentProfileData {
-  personal: any
+  personal: {
+    name: string
+    nickname: string
+    age: number
+    location: string
+    background: string
+    education: string
+    mission: string
+    contact: {
+      email: string
+      phone: string
+    }
+    personalStatement: string
+    avatarUrl?: string // New field for avatar URL
+  }
   professional: any
   company: any
-  chatbotInstructions: any
+  chatbotInstructions: {
+    role: string
+    style: string
+    approach: string
+    limitations: string
+    initialGreeting?: string // New field for initial greeting
+  }
 }
 
 interface TrainingQA {
@@ -20,7 +41,7 @@ interface TrainingQA {
 
 export async function getAgentProfileData(): Promise<{ data: AgentProfileData | null; message?: string }> {
   try {
-    const { data, error } = await supabaseAdmin.from("agent_profile").select("profile_data").maybeSingle() // Use maybeSingle to handle 0 or 1 row
+    const { data, error } = await supabaseAdmin.from("agent_profile").select("profile_data").maybeSingle()
 
     if (error) {
       console.error("Error fetching agent profile:", error)
@@ -51,27 +72,32 @@ export async function updateAgentProfileData(
   const agentStyle = formData.get("agentStyle") as string
   const agentApproach = formData.get("agentApproach") as string
   const agentLimitations = formData.get("agentLimitations") as string
+  const initialGreeting = formData.get("initialGreeting") as string // New field
+  const avatarUrl = formData.get("avatarUrl") as string // New field
 
   if (!profileJsonString) {
     return { success: false, message: "No profile JSON provided." }
   }
 
   try {
-    const baseProfile = JSON.parse(profileJsonString)
-    const fullProfileData = {
+    const baseProfile: AgentProfileData = JSON.parse(profileJsonString)
+
+    // Update chatbotInstructions and personal.avatarUrl
+    const fullProfileData: AgentProfileData = {
       ...baseProfile,
+      personal: {
+        ...baseProfile.personal,
+        avatarUrl: avatarUrl || baseProfile.personal?.avatarUrl, // Use new URL or keep existing
+      },
       chatbotInstructions: {
         role: agentRole,
         style: agentStyle,
         approach: agentApproach,
         limitations: agentLimitations,
+        initialGreeting: initialGreeting, // Set new initial greeting
       },
     }
 
-    // Attempt to update the existing single row.
-    // If no row exists, insert it. This assumes the ID is known or we upsert.
-    // For simplicity, we'll assume one row exists and update it.
-    // A more robust solution might involve checking if a row exists first.
     const { data: existingProfile, error: fetchError } = await supabaseAdmin
       .from("agent_profile")
       .select("id")
@@ -87,10 +113,9 @@ export async function updateAgentProfileData(
       const { error } = await supabaseAdmin
         .from("agent_profile")
         .update({ profile_data: fullProfileData, updated_at: new Date().toISOString() })
-        .eq("id", existingProfile.id) // Update the existing row
+        .eq("id", existingProfile.id)
       updateError = error
     } else {
-      // If no profile exists, insert a new one.
       const { error } = await supabaseAdmin.from("agent_profile").insert({ profile_data: fullProfileData })
       updateError = error
     }
@@ -100,10 +125,11 @@ export async function updateAgentProfileData(
       return { success: false, message: `Failed to update agent profile: ${updateError.message}` }
     }
 
-    revalidatePath("/api/chat") // Revalidate chat API to pick up new profile
-    revalidatePath("/api/generate-social-posts") // Revalidate social posts API
-    revalidatePath("/admin/agent-manager") // Revalidate this page
-    revalidatePath("/admin") // Revalidate the consolidated admin page
+    revalidatePath("/api/chat")
+    revalidatePath("/api/generate-social-posts")
+    revalidatePath("/admin/agent-manager")
+    revalidatePath("/admin")
+    revalidatePath("/") // Revalidate home page to pick up new intro/avatar
 
     return { success: true, message: "Agent profile updated successfully!" }
   } catch (error) {
@@ -115,7 +141,46 @@ export async function updateAgentProfileData(
   }
 }
 
-// --- Training Q&A Actions ---
+// New action for uploading agent avatar
+export async function uploadAgentAvatar(
+  prevState: any,
+  formData: FormData,
+): Promise<{ success: boolean; message: string; imageUrl?: string }> {
+  const file = formData.get("file") as File
+
+  if (!file) {
+    return { success: false, message: "No image file provided." }
+  }
+
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    console.error("BLOB_READ_WRITE_TOKEN environment variable is not set.")
+    return { success: false, message: "Server configuration error: Blob storage token is missing." }
+  }
+
+  try {
+    if (!file.type.startsWith("image/")) {
+      return { success: false, message: "Only image files are allowed for avatar." }
+    }
+
+    const filePath = `agent-avatars/${Date.now()}-${file.name}`
+    const blob = await put(filePath, file, {
+      access: "public",
+      contentType: file.type,
+      addRandomSuffix: false,
+    })
+
+    console.log("Agent avatar uploaded to Vercel Blob:", blob.url)
+    return { success: true, message: "Avatar uploaded successfully!", imageUrl: blob.url }
+  } catch (error) {
+    console.error("Error uploading agent avatar:", error)
+    return {
+      success: false,
+      message: `Failed to upload avatar: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+}
+
+// --- Training Q&A Actions (unchanged) ---
 
 export async function getTrainingQAs(): Promise<{ data: TrainingQA[] | null; message?: string }> {
   try {
@@ -158,8 +223,8 @@ export async function addTrainingQA(
       return { success: false, message: `Failed to add Q&A: ${error.message}` }
     }
 
-    revalidatePath("/api/chat") // Revalidate chat API
-    revalidatePath("/admin") // Revalidate this page
+    revalidatePath("/api/chat")
+    revalidatePath("/admin")
     return { success: true, message: "Q&A added successfully!" }
   } catch (error) {
     console.error("Unexpected error in addTrainingQA:", error)
@@ -190,8 +255,8 @@ export async function updateTrainingQA(
       return { success: false, message: `Failed to update Q&A: ${error.message}` }
     }
 
-    revalidatePath("/api/chat") // Revalidate chat API
-    revalidatePath("/admin") // Revalidate this page
+    revalidatePath("/api/chat")
+    revalidatePath("/admin")
     return { success: true, message: "Q&A updated successfully!" }
   } catch (error) {
     console.error("Unexpected error in updateTrainingQA:", error)
@@ -211,8 +276,8 @@ export async function deleteTrainingQA(id: string): Promise<{ success: boolean; 
       return { success: false, message: `Failed to delete Q&A: ${error.message}` }
     }
 
-    revalidatePath("/api/chat") // Revalidate chat API
-    revalidatePath("/admin") // Revalidate this page
+    revalidatePath("/api/chat")
+    revalidatePath("/admin")
     return { success: true, message: "Q&A deleted successfully!" }
   } catch (error) {
     console.error("Unexpected error in deleteTrainingQA:", error)

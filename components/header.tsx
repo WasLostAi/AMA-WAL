@@ -4,25 +4,23 @@ import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { SocialPostScroller } from "@/components/social-post-scroller"
-import { useWallet } from "@solana/wallet-adapter-react" // Import useWallet
-import { useWalletModal } from "@solana/wallet-adapter-react-ui" // Import useWalletModal
-import { useRouter } from "next/navigation" // Import useRouter
+import { useWallet } from "@solana/wallet-adapter-react"
+import { useWalletModal } from "@solana/wallet-adapter-react-ui"
+import { useRouter } from "next/navigation"
 
 type FeedType = "twitter" | "linkedin"
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  const [currentFeedType, setCurrentFeedType] = useState<FeedType>("twitter") // State to manage feed type
+  const [currentFeedType, setCurrentFeedType] = useState<FeedType>("twitter")
 
   const { publicKey, connected, disconnect } = useWallet()
   const { setVisible } = useWalletModal()
   const router = useRouter()
 
-  // Your specific authorized wallet address
   const authorizedWalletAddress = useMemo(() => process.env.NEXT_PUBLIC_AUTHORIZED_SOLANA_WALLET, [])
 
-  // Check if the connected wallet is YOUR authorized wallet
   const isAuthorized = useMemo(() => {
     return connected && publicKey?.toBase58() === authorizedWalletAddress
   }, [connected, publicKey, authorizedWalletAddress])
@@ -43,22 +41,50 @@ export function Header() {
     }
   }, [scrolled])
 
+  // New useEffect to handle post-connection redirection for unauthorized users
+  useEffect(() => {
+    if (connected) {
+      if (!isAuthorized) {
+        // If connected but not authorized, redirect to contact form
+        router.push("/contact")
+        // Optionally, disconnect the wallet after redirecting
+        // disconnect(); // Uncomment if you want to auto-disconnect unauthorized wallets
+      } else {
+        // If connected and authorized, and not already on admin page, navigate to admin
+        // This handles cases where they connect the authorized wallet from the home page
+        if (window.location.pathname !== "/admin") {
+          router.push("/admin")
+        }
+      }
+    }
+  }, [connected, isAuthorized, router, disconnect]) // Add disconnect to dependencies if used
+
   const toggleFeedType = () => {
     setCurrentFeedType((prevType) => (prevType === "twitter" ? "linkedin" : "twitter"))
   }
 
   const handleConnectClick = () => {
     if (isAuthorized) {
-      // If authorized, navigate to the consolidated admin editor
-      router.push("/admin") // Changed path here
+      // If already connected AND authorized, go to editor
+      router.push("/admin")
     } else if (connected) {
-      // If connected but not authorized, disconnect
+      // If connected but NOT authorized, disconnect
       disconnect()
     } else {
-      // If not connected, open the wallet modal
+      // If not connected, open the wallet modal for anyone
       setVisible(true)
     }
   }
+
+  const buttonText = useMemo(() => {
+    if (isAuthorized) {
+      return "EDITOR"
+    } else if (connected) {
+      return "DISCONNECT"
+    } else {
+      return "CONNECT WALLET"
+    }
+  }, [isAuthorized, connected])
 
   return (
     <header
@@ -92,7 +118,7 @@ export function Header() {
           className="jupiter-button-dark h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
           onClick={handleConnectClick}
         >
-          {isAuthorized ? "EDITOR" : connected ? "DISCONNECT" : "CONNECT"}
+          {buttonText}
         </Button>
       </div>
     </header>

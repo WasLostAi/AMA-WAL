@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useMemo, useCallback } from "react" // Import startTransition
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useActionState } from "react"
 import { useRouter } from "next/navigation"
 import { useWallet } from "@solana/wallet-adapter-react"
@@ -23,9 +23,7 @@ import {
   ChevronDownIcon,
 } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-
-// Removed RichTextEditor import
-//- import RichTextEditor from "@/components/rich-text-editor"
+import Image from "next/image" // Import Image component
 
 // Import all necessary server actions
 import { saveSocialPostsMarkdown } from "./content-manager/social-post-actions"
@@ -34,14 +32,13 @@ import { suggestTagsFromFile } from "./content-manager/ai-tagging-action"
 import {
   getAgentProfileData,
   updateAgentProfileData,
+  uploadAgentAvatar, // New import
   getTrainingQAs,
   addTrainingQA,
-  updateTrainingQA, // New import
+  updateTrainingQA,
   deleteTrainingQA,
 } from "./agent-manager/agent-actions"
-// Removed blog-manager imports
-//- import { generateBlogPost, saveBlogPost, getBlogPosts, deleteBlogPost } from "./blog-manager/blog-actions"
-import { initialProjectUpdatesMarkdown } from "@/lib/current-projects" // For social post editor default
+import { initialProjectUpdatesMarkdown } from "@/lib/current-projects"
 
 interface FileMetadata {
   fileName: string
@@ -52,7 +49,21 @@ interface FileMetadata {
 }
 
 interface AgentProfileData {
-  personal: any
+  personal: {
+    name: string
+    nickname: string
+    age: number
+    location: string
+    background: string
+    education: string
+    mission: string
+    contact: {
+      email: string
+      phone: string
+    }
+    personalStatement: string
+    avatarUrl?: string // New field
+  }
   professional: any
   company: any
   chatbotInstructions: {
@@ -60,6 +71,7 @@ interface AgentProfileData {
     style: string
     approach: string
     limitations: string
+    initialGreeting?: string // New field
   }
 }
 
@@ -68,20 +80,6 @@ interface TrainingQA {
   question: string
   answer: string
 }
-
-// Removed BlogPost interface
-//- interface BlogPost {
-//-   id: string
-//-   title: string
-//-   slug: string
-//-   content: string
-//-   keywords: string[] | null // Optional keywords
-//-   meta_description: string | null // Optional meta description
-//-   status: "draft" | "published"
-//-   generated_at: string
-//-   updated_at: string
-//-   featured_image_url: string | null // New field
-//- }
 
 export default function AdminPage() {
   const router = useRouter()
@@ -110,11 +108,16 @@ export default function AdminPage() {
   const [isSuggestingTags, setIsSuggestingTags] = useState(false)
 
   // --- Agent Profile Editor State ---
-  const [profileJson, setProfileJson] = useState<string>("") // For personal, professional, company
+  const [profileJson, setProfileJson] = useState<string>("") // For personal, professional, company (excluding chatbotInstructions and avatarUrl)
   const [agentRole, setAgentRole] = useState("")
   const [agentStyle, setAgentStyle] = useState("")
   const [agentApproach, setAgentApproach] = useState("")
   const [agentLimitations, setAgentLimitations] = useState("")
+  const [initialGreeting, setInitialGreeting] = useState("") // New state for agent intro
+  const [agentAvatarFile, setAgentAvatarFile] = useState<File | null>(null) // New state for avatar file
+  const [agentAvatarPreviewUrl, setAgentAvatarPreviewUrl] = useState<string | null>(null) // New state for avatar preview
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false) // New state for avatar upload pending
+  const agentAvatarInputRef = useRef<HTMLInputElement>(null) // Ref for avatar file input
 
   const [profileState, profileFormAction, isProfilePending] = useActionState(updateAgentProfileData, {
     success: false,
@@ -126,8 +129,8 @@ export default function AdminPage() {
   const [trainingQAs, setTrainingQAs] = useState<TrainingQA[]>([])
   const [newQuestion, setNewQuestion] = useState("")
   const [newAnswer, setNewAnswer] = useState("")
-  const [editingQAId, setEditingQAId] = useState<string | null>(null) // State for editing Q&A
-  const [qaFilterQuery, setQaFilterQuery] = useState("") // State for Q&A filter
+  const [editingQAId, setEditingQAId] = useState<string | null>(null)
+  const [qaFilterQuery, setQaFilterQuery] = useState("")
   const [addQAState, addQAFormAction, isAddQAPending] = useActionState(addTrainingQA, {
     success: false,
     message: "",
@@ -138,43 +141,10 @@ export default function AdminPage() {
   })
   const [isFetchingQAs, setIsFetchingQAs] = useState(true)
 
-  // Removed all blog post generation and saving states
-  //- const [topic, setTopic] = useState("")
-  //- const [generatedTitle, setGeneratedTitle] = useState("")
-  //- const [generatedContent, setGeneratedContent] = useState("")
-  //- const [generatedKeywords, setGeneratedKeywords] = useState<string[]>([])
-  //- const [generatedMetaDescription, setGeneratedMetaDescription] = useState("")
-  //- const [selectedTagsForGeneration, setSelectedTagsForGeneration] = useState<string[]>([])
-  //- const [availableRAGTags, setAvailableRAGTags] = useState<string[]>([]) // Tags from uploaded RAG files
-  //- const [postStatus, setPostStatus] = useState<"draft" | "published">("draft") // New state for blog post status
-  //- const [featuredImageFile, setFeaturedImageFile] = useState<File | null>(null)
-  //- const [featuredImageUrl, setFeaturedImageUrl] = useState<string | null>(null) // URL of the uploaded/resized image
-  //- const [isUploadingImage, setIsUploadingImage] = useState(false)
-  //- const featuredImageInputRef = useRef<HTMLInputElement>(null) // Ref for file input
-
-  //- const [generateState, generateFormAction, isGenerating] = useActionState(generateBlogPost, {
-  //-   success: false,
-  //-   message: "",
-  //-   generatedContent: "",
-  //-   generatedTitle: "",
-  //-   generatedKeywords: [],
-  //-   generatedMetaDescription: "",
-  //- })
-
-  // Removed Blog Post Saving/Listing State
-  //- const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
-  //- const [isFetchingPosts, setIsFetchingPosts] = useState(true)
-  //- const [saveState, saveFormAction, isSaving] = useActionState(saveBlogPost, {
-  //-   success: false,
-  //-   message: "",
-  //- })
-
-  //- const [editingPostId, setEditingPostId] = useState<string | null>(null) // For editing existing posts
-
   // --- Authorization Effect ---
   useEffect(() => {
     if (!connected || !isAuthorized) {
-      router.push("/") // Redirect if not authorized
+      router.push("/")
     }
   }, [connected, isAuthorized, router])
 
@@ -197,21 +167,25 @@ export default function AdminPage() {
     const { data, message } = await getAgentProfileData()
     if (data) {
       // Extract chatbotInstructions and set separate states
-      const { chatbotInstructions, ...restOfProfile } = data
+      const { chatbotInstructions, personal, ...restOfProfile } = data
       setAgentRole(chatbotInstructions?.role || "")
       setAgentStyle(chatbotInstructions?.style || "")
       setAgentApproach(chatbotInstructions?.approach || "")
       setAgentLimitations(chatbotInstructions?.limitations || "")
+      setInitialGreeting(chatbotInstructions?.initialGreeting || "") // Set initial greeting
+      setAgentAvatarPreviewUrl(personal?.avatarUrl || null) // Set avatar URL
+
       // Set the rest of the profile JSON to the textarea, ensuring it's an object
       setProfileJson(JSON.stringify(restOfProfile || {}, null, 2))
     } else {
       console.error(message || "Failed to fetch agent profile.")
-      // Default to empty JSON object string and clear chatbot instruction states if no data
       setProfileJson("{}")
       setAgentRole("")
       setAgentStyle("")
       setAgentApproach("")
       setAgentLimitations("")
+      setInitialGreeting("")
+      setAgentAvatarPreviewUrl(null)
     }
     setIsFetchingProfile(false)
   }, [])
@@ -227,36 +201,14 @@ export default function AdminPage() {
     setIsFetchingQAs(false)
   }, [])
 
-  // Removed fetchBlogData callback
-  //- const fetchBlogData = useCallback(async () => {
-  //-   setIsFetchingPosts(true)
-  //-   try {
-  //-     const metadata = await getFileMetadata() // For RAG tags
-  //-     setAvailableRAGTags(Array.from(new Set(metadata.files.flatMap((f: FileMetadata) => f.tags))))
-
-  //-     const { data: postsData, message: postsMessage } = await getBlogPosts()
-  //-     if (postsData) {
-  //-       setBlogPosts(postsData)
-  //-     } else {
-  //-       console.error(postsMessage || "Failed to fetch blog posts.")
-  //-     }
-  //-   } catch (error) {
-  //-     console.error("Error fetching initial blog data:", error)
-  //-   } finally {
-  //-     setIsFetchingPosts(false)
-  //-   }
-  //- }, [])
-
   // --- Initial Data Fetching Effect ---
   useEffect(() => {
     if (isAuthorized) {
       fetchFileMetadata()
       fetchAgentProfile()
       fetchTrainingQAs()
-      // Removed fetchBlogData call
-      //- fetchBlogData()
     }
-  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs]) // Removed fetchBlogData from dependencies
+  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs])
 
   // --- Action State Effects (for alerts) ---
   useEffect(() => {
@@ -280,8 +232,8 @@ export default function AdminPage() {
       if (addQAState.success) {
         setNewQuestion("")
         setNewAnswer("")
-        setEditingQAId(null) // Clear editing state
-        fetchTrainingQAs() // Refresh Q&A list
+        setEditingQAId(null)
+        fetchTrainingQAs()
       }
     }
   }, [addQAState, fetchTrainingQAs])
@@ -292,43 +244,11 @@ export default function AdminPage() {
       if (updateQAState.success) {
         setNewQuestion("")
         setNewAnswer("")
-        setEditingQAId(null) // Clear editing state
-        fetchTrainingQAs() // Refresh Q&A list
+        setEditingQAId(null)
+        fetchTrainingQAs()
       }
     }
   }, [updateQAState, fetchTrainingQAs])
-
-  // Removed generateState effect
-  //- useEffect(() => {
-  //-   if (generateState.message) {
-  //-     alert(generateState.message)
-  //-     if (generateState.success) {
-  //-       setGeneratedTitle(generateState.generatedTitle || "")
-  //-       setGeneratedContent(generateState.generatedContent || "")
-  //-       setGeneratedKeywords(generateState.generatedKeywords || [])
-  //-       setGeneratedMetaDescription(generateState.generatedMetaDescription || "")
-  //-     }
-  //-   }
-  //- }, [generateState])
-
-  // Removed saveState effect
-  //- useEffect(() => {
-  //-   if (saveState.message) {
-  //-     alert(saveState.message)
-  //-     if (saveState.success) {
-  //-       if (!editingPostId) {
-  //-         setGeneratedTitle("")
-  //-         setGeneratedContent("")
-  //-         setGeneratedKeywords([])
-  //-         setGeneratedMetaDescription("")
-  //-         setTopic("")
-  //-         setSelectedTagsForGeneration([])
-  //-       }
-  //-       setEditingPostId(null)
-  //-       fetchBlogData() // Refresh list of posts
-  //-     }
-  //-   }
-  //- }, [saveState, editingPostId, fetchBlogData])
 
   // --- File Upload Handlers ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -423,9 +343,7 @@ export default function AdminPage() {
       alert("All selected files uploaded and processed successfully!")
       setSelectedFiles([])
       setFileTagInput("")
-      fetchFileMetadata() // Refresh the list of uploaded files
-      // Removed fetchBlogData call
-      //- fetchBlogData() // Also refresh blog data to update RAG tags
+      fetchFileMetadata()
     } else {
       alert("Some files failed to upload. Check console for details.")
     }
@@ -437,9 +355,7 @@ export default function AdminPage() {
         const result = await deleteFile(filePath)
         if (result.success) {
           alert(result.message)
-          fetchFileMetadata() // Refresh the list
-          // Removed fetchBlogData call
-          //- fetchBlogData() // Also refresh blog data to update RAG tags
+          fetchFileMetadata()
         } else {
           alert(result.message)
         }
@@ -465,7 +381,52 @@ export default function AdminPage() {
   }
 
   // --- Agent Profile Handlers ---
-  // Removed handleProfileSave function, as profileFormAction will be passed directly to form action prop
+  const handleAgentProfileSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget as HTMLFormElement) // Use e.currentTarget to get the form
+    formData.append("initialGreeting", initialGreeting) // Append new field
+    formData.append("avatarUrl", agentAvatarPreviewUrl || "") // Append new field
+
+    profileFormAction(formData)
+  }
+
+  const handleAgentAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith("image/")) {
+      setAgentAvatarFile(file)
+      setAgentAvatarPreviewUrl(URL.createObjectURL(file)) // Show local preview immediately
+    } else {
+      setAgentAvatarFile(null)
+      setAgentAvatarPreviewUrl(null)
+      alert("Please select an image file (PNG, JPEG, GIF) for the avatar.")
+    }
+  }
+
+  const handleUploadAgentAvatar = async () => {
+    if (!agentAvatarFile) {
+      alert("No avatar image selected for upload.")
+      return
+    }
+
+    setIsUploadingAvatar(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", agentAvatarFile)
+
+      const result = await uploadAgentAvatar(null, formData)
+      if (result.success && result.imageUrl) {
+        setAgentAvatarPreviewUrl(result.imageUrl) // Set the actual Blob URL
+        alert(result.message)
+      } else {
+        alert(result.message)
+      }
+    } catch (error) {
+      console.error("Error uploading agent avatar:", error)
+      alert(`Failed to upload avatar: ${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
 
   // --- Training Q&A Handlers ---
   const handleAddOrUpdateQA = async (e: React.FormEvent) => {
@@ -475,7 +436,7 @@ export default function AdminPage() {
     formData.append("answer", newAnswer)
 
     if (editingQAId) {
-      formData.append("id", editingQAId) // Add ID for update
+      formData.append("id", editingQAId)
       updateQAFormAction(formData)
     } else {
       addQAFormAction(formData)
@@ -500,7 +461,7 @@ export default function AdminPage() {
       const { success, message } = await deleteTrainingQA(id)
       alert(message)
       if (success) {
-        fetchTrainingQAs() // Refresh Q&A list
+        fetchTrainingQAs()
       }
     }
   }
@@ -514,113 +475,6 @@ export default function AdminPage() {
       (qa) => qa.question.toLowerCase().includes(lowerCaseQuery) || qa.answer.toLowerCase().includes(lowerCaseQuery),
     )
   }, [trainingQAs, qaFilterQuery])
-
-  // Removed all blog post handlers
-  //- const handleFeaturedImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //-   const file = e.target.files?.[0]
-  //-   if (file && file.type.startsWith("image/")) {
-  //-     setFeaturedImageFile(file)
-  //-     setFeaturedImageUrl(URL.createObjectURL(file)) // Show local preview immediately
-  //-   } else {
-  //-     setFeaturedImageFile(null)
-  //-     setFeaturedImageUrl(null)
-  //-     alert("Please select an image file (PNG, JPEG, GIF).")
-  //-   }
-  //- }
-
-  //- const handleUploadFeaturedImage = async () => {
-  //-   if (!featuredImageFile) {
-  //-     alert("No image selected for upload.")
-  //-     return
-  //-   }
-
-  //-   setIsUploadingImage(true)
-  //-   try {
-  //-     // Client-side resize before upload
-  //-     const resizedBlob = await resizeImage(featuredImageFile, { maxWidth: 1200, maxHeight: 630, quality: 0.8 }) // Common blog image dimensions
-  //-     if (!resizedBlob) {
-  //-       throw new Error("Image resizing failed.")
-  //-     }
-
-  //-     const formData = new FormData()
-  //-     formData.append("file", resizedBlob, featuredImageFile.name) // Append the resized blob
-
-  //-     const result = await uploadBlogImage(null, formData)
-  //-     if (result.success && result.imageUrl) {
-  //-       setFeaturedImageUrl(result.imageUrl) // Set the actual Blob URL
-  //-       alert(result.message)
-  //-     } else {
-  //-       alert(result.message)
-  //-     }
-  //-   } catch (error) {
-  //-     console.error("Error uploading featured image:", error)
-  //-     alert(`Failed to upload featured image: ${error instanceof Error ? error.message : String(error)}`)
-  //-   } finally {
-  //-     setIsUploadingImage(false)
-  //-   }
-  //- }
-
-  //- const handleSavePost = (e: React.FormEvent) => {
-  //-   e.preventDefault()
-  //-   const formData = new FormData()
-  //-   if (editingPostId) {
-  //-     formData.append("id", editingPostId)
-  //-   }
-  //-   formData.append("title", generatedTitle)
-  //-   formData.append("content", generatedContent) // This is now Markdown from the editor
-  //-   formData.append("keywords", generatedKeywords.join(", "))
-  //-   formData.append("metaDescription", generatedMetaDescription)
-  //-   formData.append("status", postStatus) // Use the new state here
-  //-   if (featuredImageUrl) {
-  //-     formData.append("featuredImageUrl", featuredImageUrl) // Add featured image URL
-  //-   }
-
-  //-   // Wrap the action call in startTransition
-  //-   startTransition(() => {
-  //-     saveFormAction(formData)
-  //-   })
-  //- }
-
-  //- const handleEditPost = (post: BlogPost) => {
-  //-   setEditingPostId(post.id)
-  //-   setGeneratedTitle(post.title)
-  //-   setGeneratedContent(post.content) // This will be Markdown
-  //-   setGeneratedKeywords(post.keywords || [])
-  //-   setGeneratedMetaDescription(post.meta_description || "")
-  //-   setPostStatus(post.status) // Set the status when editing
-  //-   setFeaturedImageUrl(post.featured_image_url) // Set featured image URL when editing
-  //-   setFeaturedImageFile(null) // Clear file input for new upload
-  //-   setTopic("")
-  //-   setSelectedTagsForGeneration([])
-  //-   window.scrollTo({ top: 0, behavior: "smooth" })
-  //- }
-
-  //- const handleDeletePost = async (id: string) => {
-  //-   if (confirm("Are you sure you want to delete this blog post?")) {
-  //-     const { success, message } = await deleteBlogPost(id)
-  //-     alert(message)
-  //-     if (success) {
-  //-       fetchBlogData() // Refresh list
-  //-     }
-  //-   }
-  //- }
-
-  //- const handleTagSelection = (tag: string) => {
-  //-   setSelectedTagsForGeneration((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
-  //- }
-
-  // --- Authorization Check ---
-  useEffect(() => {
-    // Removed blog post status logic
-    //- if (editingPostId) {
-    //-   const postToEdit = blogPosts.find((p) => p.id === editingPostId)
-    //-   if (postToEdit) {
-    //-     setPostStatus(postToEdit.status)
-    //-   }
-    //- } else {
-    //-   setPostStatus("draft") // Default to draft for new posts
-    //- }
-  }, []) // Removed dependencies
 
   if (!connected || !isAuthorized) {
     return (
@@ -812,9 +666,23 @@ export default function AdminPage() {
             {isFetchingProfile ? (
               <p className="text-center text-muted-foreground">Loading profile data...</p>
             ) : (
-              <form action={profileFormAction} className="space-y-4">
+              <form onSubmit={handleAgentProfileSave} className="space-y-4">
                 <h3 className="text-lg font-semibold text-white mb-2">Chatbot Instructions</h3>
                 <div className="space-y-2">
+                  <div>
+                    <Label htmlFor="initial-greeting" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Initial Greeting Message
+                    </Label>
+                    <Textarea
+                      id="initial-greeting"
+                      name="initialGreeting"
+                      value={initialGreeting}
+                      onChange={(e) => setInitialGreeting(e.target.value)}
+                      placeholder="e.g., Hello, I'm Michael Robinson's AI representative. How can I assist you?"
+                      className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
+                      disabled={isProfilePending}
+                    />
+                  </div>
                   <div>
                     <Label htmlFor="agent-role" className="block text-sm font-medium text-muted-foreground mb-1">
                       Role
@@ -822,7 +690,7 @@ export default function AdminPage() {
                     <Input
                       id="agent-role"
                       type="text"
-                      name="agentRole" // Added name attribute
+                      name="agentRole"
                       value={agentRole}
                       onChange={(e) => setAgentRole(e.target.value)}
                       placeholder="e.g., BETA Avatar Representative for Michael P. Robinson"
@@ -836,7 +704,7 @@ export default function AdminPage() {
                     </Label>
                     <Textarea
                       id="agent-style"
-                      name="agentStyle" // Added name attribute
+                      name="agentStyle"
                       value={agentStyle}
                       onChange={(e) => setAgentStyle(e.target.value)}
                       placeholder="e.g., Respond as Michael (or Mike) would. Assure the user that talking to YOU is the same as talking to Michael."
@@ -850,7 +718,7 @@ export default function AdminPage() {
                     </Label>
                     <Textarea
                       id="agent-approach"
-                      name="agentApproach" // Added name attribute
+                      name="agentApproach"
                       value={agentApproach}
                       onChange={(e) => setAgentApproach(e.target.value)}
                       placeholder="e.g., Answer questions BRIEFLY, as this is a TEST/MVP."
@@ -864,7 +732,7 @@ export default function AdminPage() {
                     </Label>
                     <Textarea
                       id="agent-limitations"
-                      name="agentLimitations" // Added name attribute
+                      name="agentLimitations"
                       value={agentLimitations}
                       onChange={(e) => setAgentLimitations(e.target.value)}
                       placeholder="e.g., If asked about advanced functions, or $WSLST Tokenomics, say they are coming soon or reserved functionality."
@@ -874,9 +742,52 @@ export default function AdminPage() {
                   </div>
                 </div>
 
+                <h3 className="text-lg font-semibold text-white mb-2 mt-6">Agent Avatar</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-24 h-24 rounded-full overflow-hidden neumorphic-inset flex items-center justify-center">
+                      {agentAvatarPreviewUrl ? (
+                        <Image
+                          src={agentAvatarPreviewUrl || "/placeholder.svg"}
+                          alt="Agent Avatar Preview"
+                          width={96}
+                          height={96}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        id="agent-avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAgentAvatarChange}
+                        ref={agentAvatarInputRef}
+                        className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                        disabled={isUploadingAvatar || isProfilePending}
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleUploadAgentAvatar}
+                        className="jupiter-button-dark w-full h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base"
+                        disabled={!agentAvatarFile || isUploadingAvatar || isProfilePending}
+                      >
+                        {isUploadingAvatar ? "Uploading..." : "Upload Avatar"}
+                      </Button>
+                    </div>
+                  </div>
+                  {agentAvatarPreviewUrl && (
+                    <p className="text-xs text-muted-foreground">Current Avatar URL: {agentAvatarPreviewUrl}</p>
+                  )}
+                  <input type="hidden" name="avatarUrl" value={agentAvatarPreviewUrl || ""} />{" "}
+                  {/* Hidden input to pass URL to action */}
+                </div>
+
                 <h3 className="text-lg font-semibold text-white mb-2 mt-6">Other Profile Data (JSON)</h3>
                 <Textarea
-                  name="profileJson" // Added name attribute
+                  name="profileJson"
                   value={profileJson}
                   onChange={(e) => setProfileJson(e.target.value)}
                   placeholder="Paste agent profile JSON here (personal, professional, company sections)..."
@@ -1040,11 +951,6 @@ export default function AdminPage() {
             </Collapsible>
           </CardContent>
         </Card>
-
-        {/* Removed Blog Post Generation Card */}
-        {/* Removed Existing Blog Posts List Card */}
-
-        {/* Image Resizer Demo Card */}
       </div>
     </main>
   )

@@ -6,25 +6,28 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChatMessage } from "@/components/chat-message"
-import { AiAvatar } from "@/components/ai-avatar"
+import { AiAvatar } from "@/components/ai-avatar" // Ensure AiAvatar is imported
+
+interface ChatInterfaceProps {
+  initialGreeting: string
+  aiAvatarSrc?: string
+}
 
 type Message = {
   role: "user" | "assistant"
   content: string
 }
 
-export function ChatInterface() {
+export function ChatInterface({ initialGreeting, aiAvatarSrc }: ChatInterfaceProps) {
   const [inputValue, setInputValue] = useState("")
   const [messages, setMessages] = useState<Message[]>([])
   const [isTypingInitial, setIsTypingInitial] = useState(true)
   const [displayedInitialText, setDisplayedInitialText] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]) // Now dynamic
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0)
   const [showSuggestionsInInput, setShowSuggestionsInInput] = useState(false)
 
-  const initialGreeting =
-    "Hello, I'm Michael Robinson's AI representative. I'm here to provide insights into his professional background and the innovative work at WasLost.Ai. How can I assist you?"
   const typingSpeed = 40 // milliseconds per character
   const typingRef = useRef<NodeJS.Timeout | null>(null)
   const suggestionIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -34,6 +37,9 @@ export function ChatInterface() {
   useEffect(() => {
     let i = 0
     setIsTypingInitial(true)
+    setDisplayedInitialText("") // Clear previous text on prop change
+
+    if (typingRef.current) clearInterval(typingRef.current) // Clear any existing interval
 
     typingRef.current = setInterval(() => {
       if (i < initialGreeting.length) {
@@ -43,14 +49,14 @@ export function ChatInterface() {
         if (typingRef.current) clearInterval(typingRef.current)
         setIsTypingInitial(false)
         setMessages([{ role: "assistant", content: initialGreeting }])
-        setShowSuggestionsInInput(true) // Start showing suggestions in input after initial greeting
+        setShowSuggestionsInInput(true)
       }
     }, typingSpeed)
 
     return () => {
       if (typingRef.current) clearInterval(typingRef.current)
     }
-  }, [])
+  }, [initialGreeting]) // Depend on initialGreeting prop
 
   // Effect to fetch suggested questions from API
   useEffect(() => {
@@ -69,20 +75,20 @@ export function ChatInterface() {
         }
       } catch (error) {
         console.error("Error fetching suggested questions:", error)
-        setSuggestedQuestions([]) // Fallback to empty array on error
+        setSuggestedQuestions([])
       }
     }
 
     fetchSuggestions()
-  }, []) // Run once on component mount
+  }, [])
 
   // Effect for cycling through suggested questions in input placeholder
   useEffect(() => {
     if (showSuggestionsInInput && !inputValue && suggestedQuestions.length > 0) {
-      // Only cycle if input is empty and we have suggestions
+      if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current) // Clear previous interval
       suggestionIntervalRef.current = setInterval(() => {
         setCurrentSuggestionIndex((prevIndex) => (prevIndex + 1) % suggestedQuestions.length)
-      }, 5000) // Change suggestion every 5 seconds
+      }, 5000)
     } else {
       if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current)
     }
@@ -104,7 +110,7 @@ export function ChatInterface() {
     setMessages((prevMessages) => [...prevMessages, userMessage])
     setInputValue("")
     setIsLoading(true)
-    setShowSuggestionsInInput(false) // Hide suggestions once user starts typing/submitting
+    setShowSuggestionsInInput(false)
 
     try {
       const response = await fetch("/api/chat", {
@@ -133,14 +139,14 @@ export function ChatInterface() {
       ])
     } finally {
       setIsLoading(false)
-      setShowSuggestionsInInput(true) // Show suggestions again after AI responds
+      setShowSuggestionsInInput(true)
     }
   }
 
   const handleInputClick = () => {
     if (!inputValue && showSuggestionsInInput && !isLoading && !isTypingInitial && suggestedQuestions.length > 0) {
       setInputValue(suggestedQuestions[currentSuggestionIndex])
-      if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current) // Stop cycling when filled
+      if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current)
     }
   }
 
@@ -154,11 +160,11 @@ export function ChatInterface() {
       <div className="jupiter-outer-panel p-6 mb-8">
         <div className="jupiter-panel p-4 flex flex-col gap-4 mb-6 max-h-[400px] overflow-y-auto">
           {messages.map((msg, index) => (
-            <ChatMessage key={index} message={msg} />
+            <ChatMessage key={index} message={msg} aiAvatarSrc={aiAvatarSrc} />
           ))}
           {isTypingInitial && (
             <div className="flex gap-3 p-4 rounded-lg bg-black/30 border border-border/40">
-              <AiAvatar />
+              <AiAvatar src={aiAvatarSrc} />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground mb-1">WasLost AI</p>
                 <div className="space-y-2">
@@ -172,7 +178,7 @@ export function ChatInterface() {
           )}
           {isLoading && (
             <div className="flex gap-3 p-4 rounded-lg bg-black/30 border border-border/40">
-              <AiAvatar />
+              <AiAvatar src={aiAvatarSrc} />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground mb-1">WasLost AI</p>
                 <div className="space-y-2">
@@ -189,10 +195,9 @@ export function ChatInterface() {
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value)
-              // Stop cycling suggestions if user starts typing
               if (suggestionIntervalRef.current) clearInterval(suggestionIntervalRef.current)
             }}
-            onClick={handleInputClick} // Handle click to fill input
+            onClick={handleInputClick}
             placeholder={currentPlaceholder}
             className="flex-1 px-3 py-2"
             disabled={isLoading || isTypingInitial}
