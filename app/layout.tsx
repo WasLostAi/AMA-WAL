@@ -22,9 +22,18 @@ export const metadata: Metadata = {
   title: "WasLost Ai",
   description: "Ask Me Anything!",
   icons: {
-    icon: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Untitled%20design%20%2839%29-Bpnali2Y0fIY10nwBriEJbyBqmXGFv.png", // Corrected favicon to use the site logo
-    apple: "/apple-icon.png",
+    icon: "/favicon.ico", // Use the new .ico file
+    shortcut: "/favicon-96x96.png", // Optional: for older browsers/devices
+    apple: "/apple-touch-icon.png", // Use the new apple touch icon
+    other: [
+      {
+        rel: "mask-icon",
+        url: "/favicon.svg", // For Safari pinned tabs
+        color: "#0C0C0C", // Adjust color as needed for your design
+      },
+    ],
   },
+  manifest: "/site.webmanifest", // Assuming you'll create this later for PWA
     generator: 'v0.dev'
 }
 
