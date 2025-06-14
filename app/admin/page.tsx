@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useMemo, useCallback, useRef } from "react"
+// Import `startTransition` from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef, startTransition } from "react"
 import { useActionState } from "react"
 import { useRouter } from "next/navigation"
 import { useWallet } from "@solana/wallet-adapter-react"
@@ -381,13 +382,17 @@ export default function AdminPage() {
   }
 
   // --- Agent Profile Handlers ---
+  // Find the `handleAgentProfileSave` function and wrap the `profileFormAction` call in `startTransition`
   const handleAgentProfileSave = (e: React.FormEvent) => {
     e.preventDefault()
-    const formData = new FormData(e.currentTarget as HTMLFormElement) // Use e.currentTarget to get the form
-    formData.append("initialGreeting", initialGreeting) // Append new field
-    formData.append("avatarUrl", agentAvatarPreviewUrl || "") // Append new field
+    const formData = new FormData(e.currentTarget as HTMLFormElement)
+    formData.append("initialGreeting", initialGreeting)
+    formData.append("avatarUrl", agentAvatarPreviewUrl || "")
 
-    profileFormAction(formData)
+    startTransition(() => {
+      // Wrap the action call in startTransition
+      profileFormAction(formData)
+    })
   }
 
   const handleAgentAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
