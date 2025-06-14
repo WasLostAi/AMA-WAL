@@ -84,7 +84,7 @@ interface TrainingQA {
 
 export default function AdminPage() {
   const router = useRouter()
-  const { publicKey, connected } = useWallet()
+  const { publicKey, connected, disconnect } = useWallet()
 
   const authorizedWalletAddress = useMemo(() => process.env.NEXT_PUBLIC_AUTHORIZED_SOLANA_WALLET, [])
   const isAuthorized = useMemo(() => {
@@ -495,7 +495,10 @@ export default function AdminPage() {
         {/* Close Button */}
         <div className="flex justify-end">
           <Button
-            onClick={() => router.push("/")}
+            onClick={() => {
+              disconnect() // Disconnect the wallet
+              router.push("/") // Then navigate to the home page
+            }}
             className="jupiter-button-dark h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base flex items-center gap-2"
           >
             <XIcon className="h-4 w-4" /> Close Editor
