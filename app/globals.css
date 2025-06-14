@@ -34,6 +34,26 @@
     --ring: 174 100% 45%;
 
     --radius: 0.75rem; /* Slightly larger radius for softer look */
+
+    /* Solana Wallet Adapter Customizations */
+    --wallet-adapter-button-background-color: #0c0c0c; /* neumorphic-base */
+    --wallet-adapter-button-color: hsl(84 100% 59%); /* secondary color */
+    --wallet-adapter-button-hover-background-color: #1a1a1a; /* neumorphic-light */
+    --wallet-adapter-button-active-background-color: #000000; /* neumorphic-dark */
+    --wallet-adapter-button-border-radius: 0.75rem; /* --radius */
+    --wallet-adapter-button-box-shadow: 3px 3px 6px #000000, -3px -3px 6px #1a1a1a; /* neumorphic-base shadow */
+
+    --wallet-adapter-modal-background-color: #0c0c0c; /* neumorphic-base */
+    --wallet-adapter-modal-color: hsl(195 100% 95%); /* foreground color */
+    --wallet-adapter-modal-border-radius: 0.75rem; /* --radius */
+    --wallet-adapter-modal-box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 8px 8px 16px rgba(0, 0, 0, 0.6), -8px -8px
+      16px rgba(26, 26, 26, 0.6); /* Enhanced neumorphic shadow */
+    --wallet-adapter-modal-overlay-background-color: rgba(0, 0, 0, 0.7); /* Darker overlay */
+
+    --wallet-adapter-modal-list-item-background-color: #0c0c0c; /* neumorphic-base */
+    --wallet-adapter-modal-list-item-hover-background-color: #1a1a1a; /* neumorphic-light */
+    --wallet-adapter-modal-list-item-color: hsl(195 100% 95%); /* foreground color */
+    --wallet-adapter-modal-list-item-border-radius: 0.5rem; /* Slightly smaller for list items */
   }
 }
 

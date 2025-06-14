@@ -22,9 +22,9 @@ export const metadata: Metadata = {
   title: "WasLost Ai",
   description: "Ask Me Anything!",
   icons: {
-    icon: "/favicon.ico", // Use the new .ico file
-    shortcut: "/favicon-96x96.png", // Optional: for older browsers/devices
-    apple: "/apple-touch-icon.png", // Use the new apple touch icon
+    icon: "/favicon.svg", // Use the SVG as the primary icon
+    shortcut: "/favicon-96x96.png", // Fallback for older browsers/devices
+    apple: "/apple-touch-icon.png", // Apple touch icon
     other: [
       {
         rel: "mask-icon",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
       },
     ],
   },
-  manifest: "/site.webmanifest", // Assuming you'll create this later for PWA
+  manifest: "/site.webmanifest", // Link to your web app manifest
     generator: 'v0.dev'
 }
 
