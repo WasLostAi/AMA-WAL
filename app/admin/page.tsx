@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select" // Import Select
 import {
   XIcon,
   SparklesIcon,
@@ -23,12 +23,9 @@ import {
   FileIcon,
   ChevronDownIcon,
   Share2Icon,
-  CopyIcon,
-  PencilIcon,
 } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import Image from "next/image"
-import RichTextEditor from "@/components/rich-text-editor" // Import RichTextEditor
+import Image from "next/image" // Import Image component
 
 // Import all necessary server actions
 import { saveSocialPostsMarkdown } from "./content-manager/social-post-actions"
@@ -37,15 +34,13 @@ import { suggestTagsFromFile } from "./content-manager/ai-tagging-action"
 import {
   getAgentProfileData,
   updateAgentProfileData,
-  uploadAgentAvatar,
+  uploadAgentAvatar, // New import
   getTrainingQAs,
   addTrainingQA,
   updateTrainingQA,
   deleteTrainingQA,
 } from "./agent-manager/agent-actions"
-import { generateAndSyndicateContent, getSyndicationLogs } from "./content-manager/syndication-actions"
-import { generateBlogPost, saveBlogPost, getBlogPosts, deleteBlogPost } from "./blog-manager/blog-actions" // Blog actions
-import { uploadBlogImage } from "./blog-manager/blog-image-actions" // Blog image upload
+import { generateAndSyndicateContent, getSyndicationLogs } from "./content-manager/syndication-actions" // New imports
 import { initialProjectUpdatesMarkdown } from "@/lib/current-projects"
 
 interface FileMetadata {
@@ -70,7 +65,7 @@ interface AgentProfileData {
       phone: string
     }
     personalStatement: string
-    avatarUrl?: string
+    avatarUrl?: string // New field
   }
   professional: any
   company: {
@@ -97,7 +92,7 @@ interface AgentProfileData {
     style: string
     approach: string
     limitations: string
-    initialGreeting?: string
+    initialGreeting?: string // New field
   }
 }
 
@@ -116,23 +111,7 @@ interface GeneratedPost {
   status: string
   generated_at: string
   syndicated_at?: string
-  metadata?: {
-    character_count?: number
-    word_count?: number
-  }
-}
-
-interface BlogPost {
-  id: string
-  title: string
-  slug: string
-  content: string
-  keywords: string[] | null
-  meta_description: string | null
-  status: "draft" | "published"
-  generated_at: string
-  updated_at: string
-  featured_image_url: string | null
+  metadata?: Record<string, any>
 }
 
 export default function AdminPage() {
@@ -216,35 +195,6 @@ export default function AdminPage() {
   })
   const [syndicationLogs, setSyndicationLogs] = useState<GeneratedPost[]>([])
   const [isFetchingSyndicationLogs, setIsFetchingSyndicationLogs] = useState(true)
-
-  // --- Blog Post Generation & Manager State ---
-  const [blogTopic, setBlogTopic] = useState("")
-  const [generatedBlogTitle, setGeneratedBlogTitle] = useState("")
-  const [generatedBlogContent, setGeneratedBlogContent] = useState("")
-  const [generatedBlogKeywords, setGeneratedBlogKeywords] = useState("")
-  const [generatedBlogMetaDescription, setGeneratedBlogMetaDescription] = useState("")
-  const [blogPostStatus, setBlogPostStatus] = useState<"draft" | "published">("draft")
-  const [featuredImageUrl, setFeaturedImageUrl] = useState<string | null>(null)
-  const [blogImageFile, setBlogImageFile] = useState<File | null>(null)
-  const [blogImagePreviewUrl, setBlogImagePreviewUrl] = useState<string | null>(null)
-  const blogImageInputRef = useRef<HTMLInputElement>(null)
-
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
-  const [editingBlogPostId, setEditingBlogPostId] = useState<string | null>(null)
-  const [isFetchingBlogPosts, setIsFetchingBlogPosts] = useState(true)
-
-  const [generateBlogState, generateBlogFormAction, isGenerateBlogPending] = useActionState(generateBlogPost, {
-    success: false,
-    message: "",
-  })
-  const [saveBlogState, saveBlogFormAction, isSaveBlogPending] = useActionState(saveBlogPost, {
-    success: false,
-    message: "",
-  })
-  const [uploadBlogImageState, uploadBlogImageFormAction, isUploadBlogImagePending] = useActionState(uploadBlogImage, {
-    success: false,
-    message: "",
-  })
 
   // --- Authorization Effect ---
   useEffect(() => {
@@ -344,22 +294,6 @@ export default function AdminPage() {
     }
   }, [])
 
-  const fetchBlogPosts = useCallback(async () => {
-    setIsFetchingBlogPosts(true)
-    try {
-      const { data, message } = await getBlogPosts()
-      if (data) {
-        setBlogPosts(data)
-      } else {
-        console.error(message || "Failed to fetch blog posts.")
-      }
-    } catch (error) {
-      console.error("Error fetching blog posts:", error)
-    } finally {
-      setIsFetchingBlogPosts(false)
-    }
-  }, [])
-
   // --- Initial Data Fetching Effect ---
   useEffect(() => {
     if (isAuthorized) {
@@ -367,9 +301,8 @@ export default function AdminPage() {
       fetchAgentProfile()
       fetchTrainingQAs()
       fetchSyndicationLogs()
-      fetchBlogPosts() // Fetch blog posts on load
     }
-  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs, fetchSyndicationLogs, fetchBlogPosts])
+  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs, fetchSyndicationLogs])
 
   // --- Action State Effects (for alerts) ---
   useEffect(() => {
@@ -420,46 +353,6 @@ export default function AdminPage() {
       }
     }
   }, [syndicationState, fetchSyndicationLogs])
-
-  useEffect(() => {
-    if (generateBlogState.message) {
-      alert(generateBlogState.message)
-      if (generateBlogState.success) {
-        setGeneratedBlogTitle(generateBlogState.generatedTitle || "")
-        setGeneratedBlogContent(generateBlogState.generatedContent || "")
-        setGeneratedBlogKeywords(generateBlogState.generatedKeywords?.join(", ") || "")
-        setGeneratedBlogMetaDescription(generateBlogState.generatedMetaDescription || "")
-      }
-    }
-  }, [generateBlogState])
-
-  useEffect(() => {
-    if (saveBlogState.message) {
-      alert(saveBlogState.message)
-      if (saveBlogState.success) {
-        setEditingBlogPostId(null)
-        setGeneratedBlogTitle("")
-        setGeneratedBlogContent("")
-        setGeneratedBlogKeywords("")
-        setGeneratedBlogMetaDescription("")
-        setBlogPostStatus("draft")
-        setFeaturedImageUrl(null)
-        setBlogImageFile(null)
-        setBlogImagePreviewUrl(null)
-        fetchBlogPosts()
-      }
-    }
-  }, [saveBlogState, fetchBlogPosts])
-
-  useEffect(() => {
-    if (uploadBlogImageState.message) {
-      alert(uploadBlogImageState.message)
-      if (uploadBlogImageState.success && uploadBlogImageState.imageUrl) {
-        setFeaturedImageUrl(uploadBlogImageState.imageUrl)
-        setBlogImagePreviewUrl(uploadBlogImageState.imageUrl)
-      }
-    }
-  }, [uploadBlogImageState])
 
   // --- File Upload Handlers ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -723,106 +616,6 @@ export default function AdminPage() {
     })
   }
 
-  const handleCopyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    alert("Content copied to clipboard!")
-  }
-
-  // --- Blog Post Generation & Manager Handlers ---
-  const handleGenerateBlog = (e: React.FormEvent) => {
-    e.preventDefault()
-    const formData = new FormData()
-    formData.append("topic", blogTopic)
-    startTransition(() => {
-      generateBlogFormAction(formData)
-    })
-  }
-
-  const handleSaveBlog = (e: React.FormEvent) => {
-    e.preventDefault()
-    const formData = new FormData()
-    if (editingBlogPostId) {
-      formData.append("id", editingBlogPostId)
-    }
-    formData.append("title", generatedBlogTitle)
-    formData.append("content", generatedBlogContent)
-    formData.append("keywords", generatedBlogKeywords)
-    formData.append("metaDescription", generatedBlogMetaDescription)
-    formData.append("status", blogPostStatus)
-    formData.append("featuredImageUrl", featuredImageUrl || "")
-
-    startTransition(() => {
-      saveBlogFormAction(formData)
-    })
-  }
-
-  const handleBlogImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file && file.type.startsWith("image/")) {
-      setBlogImageFile(file)
-      setBlogImagePreviewUrl(URL.createObjectURL(file)) // Show local preview immediately
-    } else {
-      setBlogImageFile(null)
-      setBlogImagePreviewUrl(null)
-      alert("Please select an image file (PNG, JPEG, GIF) for the featured image.")
-    }
-  }
-
-  const handleUploadBlogImage = async () => {
-    if (!blogImageFile) {
-      alert("No image selected for upload.")
-      return
-    }
-
-    startTransition(async () => {
-      const formData = new FormData()
-      formData.append("file", blogImageFile)
-      await uploadBlogImageFormAction(formData)
-    })
-  }
-
-  const handleEditBlog = (post: BlogPost) => {
-    setEditingBlogPostId(post.id)
-    setGeneratedBlogTitle(post.title)
-    setGeneratedBlogContent(post.content)
-    setGeneratedBlogKeywords(post.keywords?.join(", ") || "")
-    setGeneratedBlogMetaDescription(post.meta_description || "")
-    setBlogPostStatus(post.status)
-    setFeaturedImageUrl(post.featured_image_url || null)
-    setBlogImagePreviewUrl(post.featured_image_url || null)
-    window.scrollTo({ top: document.getElementById("blog-generation-section")?.offsetTop || 0, behavior: "smooth" })
-  }
-
-  const handleCancelEditBlog = () => {
-    setEditingBlogPostId(null)
-    setGeneratedBlogTitle("")
-    setGeneratedBlogContent("")
-    setGeneratedBlogKeywords("")
-    setGeneratedBlogMetaDescription("")
-    setBlogPostStatus("draft")
-    setFeaturedImageUrl(null)
-    setBlogImageFile(null)
-    setBlogImagePreviewUrl(null)
-  }
-
-  const handleDeleteBlog = async (id: string) => {
-    if (confirm("Are you sure you want to delete this blog post?")) {
-      const { success, message } = await deleteBlogPost(id)
-      alert(message)
-      if (success) {
-        fetchBlogPosts()
-      }
-    }
-  }
-
-  const blogContentWordCount = useMemo(() => {
-    return generatedBlogContent.split(/\s+/).filter(Boolean).length
-  }, [generatedBlogContent])
-
-  const blogMetaDescriptionCharCount = useMemo(() => {
-    return generatedBlogMetaDescription.length
-  }, [generatedBlogMetaDescription])
-
   if (!connected || !isAuthorized) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -847,7 +640,7 @@ export default function AdminPage() {
           </Button>
         </div>
 
-        {/* AI Content Generation Section */}
+        {/* Content Generation Section */}
         <Card className="w-full jupiter-outer-panel p-6">
           <CardHeader>
             <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">AI Content Generation</CardTitle>
@@ -934,21 +727,12 @@ export default function AdminPage() {
             </form>
 
             {generatedContentPreview && (
-              <div className="mt-6 p-4 neumorphic-inset rounded-lg relative">
+              <div className="mt-6 p-4 neumorphic-inset rounded-lg">
                 <h3 className="text-lg font-semibold text-[#afcd4f] mb-2">Generated Content Preview:</h3>
                 {generatedContentPreview.title && (
                   <p className="text-sm font-medium text-white mb-1">Title: {generatedContentPreview.title}</p>
                 )}
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{generatedContentPreview.content}</p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleCopyToClipboard(generatedContentPreview.content)}
-                  className="absolute top-2 right-2 text-muted-foreground hover:text-white"
-                  aria-label="Copy to clipboard"
-                >
-                  <CopyIcon className="h-4 w-4" />
-                </Button>
               </div>
             )}
           </CardContent>
@@ -997,16 +781,6 @@ export default function AdminPage() {
                           {new Date(post.syndicated_at).toLocaleString()}
                         </p>
                       )}
-                      {post.metadata?.word_count && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          <span className="text-[#afcd4f]">Words:</span> {post.metadata.word_count}
-                        </p>
-                      )}
-                      {post.metadata?.character_count && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          <span className="text-[#afcd4f]">Chars:</span> {post.metadata.character_count}
-                        </p>
-                      )}
                       <Collapsible className="w-full mt-2">
                         <CollapsibleTrigger className="flex items-center gap-2 text-xs text-[#2ed3b7] hover:underline">
                           View Content{" "}
@@ -1018,280 +792,6 @@ export default function AdminPage() {
                       </Collapsible>
                     </div>
                     {/* Add actions like "Retry Syndication" or "Edit" here later */}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* AI Blog Post Generation Section */}
-        <Card className="w-full jupiter-outer-panel p-6 mt-8" id="blog-generation-section">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">AI Blog Post Generation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Generate a full blog post using AI. You can then edit and save it.
-            </p>
-            <form onSubmit={handleGenerateBlog} className="space-y-4 mb-6">
-              <div>
-                <Label htmlFor="blog-topic" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Blog Topic
-                </Label>
-                <Input
-                  id="blog-topic"
-                  type="text"
-                  value={blogTopic}
-                  onChange={(e) => setBlogTopic(e.target.value)}
-                  placeholder="e.g., The Future of Decentralized AI Agents"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isGenerateBlogPending}
-                  required
-                />
-              </div>
-              <Button
-                type="submit"
-                className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
-                disabled={isGenerateBlogPending || !blogTopic.trim()}
-              >
-                {isGenerateBlogPending ? (
-                  "Generating Blog Post..."
-                ) : (
-                  <>
-                    <SparklesIcon className="h-4 w-4 mr-2" /> GENERATE BLOG POST
-                  </>
-                )}
-              </Button>
-            </form>
-
-            <form onSubmit={handleSaveBlog} className="space-y-4">
-              <h3 className="text-lg font-semibold text-white mb-2">Edit & Save Blog Post</h3>
-              <div>
-                <Label htmlFor="blog-title" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Title
-                </Label>
-                <Input
-                  id="blog-title"
-                  type="text"
-                  value={generatedBlogTitle}
-                  onChange={(e) => setGeneratedBlogTitle(e.target.value)}
-                  placeholder="Blog Post Title"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isSaveBlogPending}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="blog-content" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Content (Markdown)
-                </Label>
-                <RichTextEditor
-                  value={generatedBlogContent}
-                  onChange={setGeneratedBlogContent}
-                  disabled={isSaveBlogPending}
-                  placeholder="Your blog post content goes here..."
-                />
-                <p className="text-xs text-muted-foreground mt-1 text-right">Word Count: {blogContentWordCount}</p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleCopyToClipboard(generatedBlogContent)}
-                  className="text-muted-foreground hover:text-white mt-2"
-                  aria-label="Copy blog content to clipboard"
-                >
-                  <CopyIcon className="h-4 w-4 mr-2" /> Copy Content
-                </Button>
-              </div>
-              <div>
-                <Label htmlFor="blog-keywords" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Keywords (comma-separated)
-                </Label>
-                <Input
-                  id="blog-keywords"
-                  type="text"
-                  value={generatedBlogKeywords}
-                  onChange={(e) => setGeneratedBlogKeywords(e.target.value)}
-                  placeholder="e.g., AI, Web3, Solana, Agents"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isSaveBlogPending}
-                />
-              </div>
-              <div>
-                <Label htmlFor="blog-meta-description" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Meta Description (max 160 chars)
-                </Label>
-                <Textarea
-                  id="blog-meta-description"
-                  value={generatedBlogMetaDescription}
-                  onChange={(e) => setGeneratedBlogMetaDescription(e.target.value)}
-                  placeholder="A concise summary for search engines."
-                  className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isSaveBlogPending}
-                  maxLength={160}
-                />
-                <p className="text-xs text-muted-foreground mt-1 text-right">
-                  Characters: {blogMetaDescriptionCharCount}/160
-                </p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleCopyToClipboard(generatedBlogMetaDescription)}
-                  className="text-muted-foreground hover:text-white mt-2"
-                  aria-label="Copy meta description to clipboard"
-                >
-                  <CopyIcon className="h-4 w-4 mr-2" /> Copy Meta Description
-                </Button>
-              </div>
-              <div>
-                <Label htmlFor="blog-status" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Status
-                </Label>
-                <Select
-                  value={blogPostStatus}
-                  onValueChange={(value) => setBlogPostStatus(value as "draft" | "published")}
-                  disabled={isSaveBlogPending}
-                >
-                  <SelectTrigger className="w-full bg-neumorphic-base shadow-inner-neumorphic text-white">
-                    <SelectValue placeholder="Select Status" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-neumorphic-base text-white">
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="featured-image" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Featured Image
-                </Label>
-                <div className="flex items-center gap-4">
-                  <div className="w-24 h-24 rounded-lg overflow-hidden neumorphic-inset flex items-center justify-center">
-                    {blogImagePreviewUrl ? (
-                      <Image
-                        src={blogImagePreviewUrl || "/placeholder.svg"}
-                        alt="Featured Image Preview"
-                        width={96}
-                        height={96}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <ImageIcon className="h-12 w-12 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <Input
-                      id="featured-image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleBlogImageChange}
-                      ref={blogImageInputRef}
-                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isUploadBlogImagePending || isSaveBlogPending}
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleUploadBlogImage}
-                      className="jupiter-button-dark w-full h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base"
-                      disabled={!blogImageFile || isUploadBlogImagePending || isSaveBlogPending}
-                    >
-                      {isUploadBlogImagePending ? "Uploading..." : "Upload Image"}
-                    </Button>
-                  </div>
-                </div>
-                {featuredImageUrl && (
-                  <p className="text-xs text-muted-foreground">Current Image URL: {featuredImageUrl}</p>
-                )}
-                <input type="hidden" name="featuredImageUrl" value={featuredImageUrl || ""} />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  className="jupiter-button-dark flex-1 h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
-                  disabled={isSaveBlogPending || !generatedBlogTitle.trim() || !generatedBlogContent.trim()}
-                >
-                  {isSaveBlogPending ? (
-                    "Saving Blog Post..."
-                  ) : (
-                    <>
-                      <SaveIcon className="h-4 w-4 mr-2" /> {editingBlogPostId ? "UPDATE POST" : "SAVE POST"}
-                    </>
-                  )}
-                </Button>
-                {editingBlogPostId && (
-                  <Button
-                    type="button"
-                    onClick={handleCancelEditBlog}
-                    variant="ghost"
-                    className="h-12 px-6 text-muted-foreground hover:text-white"
-                    disabled={isSaveBlogPending}
-                  >
-                    Cancel Edit
-                  </Button>
-                )}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Blog Post Manager Section */}
-        <Card className="w-full jupiter-outer-panel p-6 mt-8">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Blog Post Manager</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">Manage your AI-generated blog posts.</p>
-            {isFetchingBlogPosts ? (
-              <p className="text-center text-muted-foreground">Loading blog posts...</p>
-            ) : blogPosts.length === 0 ? (
-              <p className="text-center text-muted-foreground">No blog posts found yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {blogPosts.map((post) => (
-                  <div
-                    key={post.id}
-                    className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-white">{post.title}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Status: {post.status === "published" ? "Published" : "Draft"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Generated: {new Date(post.generated_at).toLocaleDateString()}
-                      </p>
-                      {post.featured_image_url && (
-                        <div className="mt-2">
-                          <Image
-                            src={post.featured_image_url || "/placeholder.svg"}
-                            alt={`Featured image for ${post.title}`}
-                            width={64}
-                            height={64}
-                            className="rounded-md object-cover"
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2 flex-shrink-0 mt-2 md:mt-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditBlog(post)}
-                        className="text-[#afcd4f] hover:bg-[#afcd4f]/20"
-                        aria-label={`Edit blog post: ${post.title}`}
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteBlog(post.id)}
-                        className="text-red-500 hover:bg-red-500/20"
-                        aria-label={`Delete blog post: ${post.title}`}
-                      >
-                        <Trash2Icon className="h-4 w-4" />
-                      </Button>
-                    </div>
                   </div>
                 ))}
               </div>
