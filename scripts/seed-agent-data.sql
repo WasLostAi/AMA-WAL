@@ -57,7 +57,7 @@ INSERT INTO agent_profile (id, profile_data) VALUES (
             "description": "A comprehensive Web3-native AI agent ecosystem combining practical utility with blockchain innovation. Specializing in Ai Agentic Solutions and Tokenized Web3 Workflows, with a primary focus on Generative and Financial/Trading Apps, including Algorithmic trading.",
             "projects": [
                 {
-                    "name": "WasLost.Ai Platform",
+                     "name": "WasLost.Ai Platform",
                     "details": [
                         "Leading development of comprehensive AI agent ecosystem.",
                         "Implementing tokenized agent system on Solana.",
@@ -75,7 +75,19 @@ INSERT INTO agent_profile (id, profile_data) VALUES (
                     ]
                 }
             ],
-            "tokenomics": "$WSLST Tokenomics COMING SOON"
+            "tokenomics": "$WSLST Tokenomics COMING SOON",
+            "config_data": {
+                "content_guidelines": {
+                    "brand_voice": "professional, innovative, slightly futuristic, empowering",
+                    "tone": "informative, confident, accessible",
+                    "keywords_focus": ["AI Agents", "Web3", "Solana", "Decentralized AI", "Trading Automation", "Generative AI"],
+                    "audience": "developers, investors, tech enthusiasts, entrepreneurs"
+                },
+                "syndication_schedule": {
+                    "default_interval_hours": 24,
+                    "platform_specific": {"twitter": {"max_per_day": 3}, "linkedin": {"max_per_week": 5}}
+                }
+            }
         },
         "chatbotInstructions": {
             "role": "BETA Avatar Representative for Michael P. Robinson",

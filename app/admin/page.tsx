@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-// Import `startTransition` from 'react'
 import { useState, useEffect, useMemo, useCallback, useRef, startTransition } from "react"
 import { useActionState } from "react"
 import { useRouter } from "next/navigation"
@@ -11,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select" // Import Select
 import {
   XIcon,
   SparklesIcon,
@@ -22,6 +22,7 @@ import {
   ImageIcon,
   FileIcon,
   ChevronDownIcon,
+  Share2Icon,
 } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import Image from "next/image" // Import Image component
@@ -39,6 +40,7 @@ import {
   updateTrainingQA,
   deleteTrainingQA,
 } from "./agent-manager/agent-actions"
+import { generateAndSyndicateContent, getSyndicationLogs } from "./content-manager/syndication-actions" // New imports
 import { initialProjectUpdatesMarkdown } from "@/lib/current-projects"
 
 interface FileMetadata {
@@ -66,7 +68,25 @@ interface AgentProfileData {
     avatarUrl?: string // New field
   }
   professional: any
-  company: any
+  company: {
+    name: string
+    product: string
+    description: string
+    projects: any[]
+    tokenomics: string
+    config_data?: {
+      content_guidelines?: {
+        brand_voice: string
+        tone: string
+        keywords_focus: string[]
+        audience: string
+      }
+      syndication_schedule?: {
+        default_interval_hours: number
+        platform_specific: { [key: string]: any }
+      }
+    }
+  }
   chatbotInstructions: {
     role: string
     style: string
@@ -80,6 +100,18 @@ interface TrainingQA {
   id: string
   question: string
   answer: string
+}
+
+interface GeneratedPost {
+  id: string
+  title?: string
+  content: string
+  platform: string
+  content_type: string
+  status: string
+  generated_at: string
+  syndicated_at?: string
+  metadata?: Record<string, any>
 }
 
 export default function AdminPage() {
@@ -120,6 +152,14 @@ export default function AdminPage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false) // New state for avatar upload pending
   const agentAvatarInputRef = useRef<HTMLInputElement>(null) // Ref for avatar file input
 
+  // New states for config_data
+  const [brandVoice, setBrandVoice] = useState("")
+  const [tone, setTone] = useState("")
+  const [keywordsFocus, setKeywordsFocus] = useState("") // Comma-separated string
+  const [audience, setAudience] = useState("")
+  const [defaultIntervalHours, setDefaultIntervalHours] = useState<number | string>("")
+  const [platformSpecificSchedule, setPlatformSpecificSchedule] = useState<string>("") // JSON string
+
   const [profileState, profileFormAction, isProfilePending] = useActionState(updateAgentProfileData, {
     success: false,
     message: "",
@@ -141,6 +181,20 @@ export default function AdminPage() {
     message: "",
   })
   const [isFetchingQAs, setIsFetchingQAs] = useState(true)
+
+  // --- Content Generation & Syndication State ---
+  const [generationTopic, setGenerationTopic] = useState("")
+  const [generationPlatform, setGenerationPlatform] = useState("twitter")
+  const [generationContentType, setGenerationContentType] = useState("tweet")
+  const [generatedContentPreview, setGeneratedContentPreview] = useState<{ title?: string; content: string } | null>(
+    null,
+  )
+  const [syndicationState, syndicateFormAction, isSyndicationPending] = useActionState(generateAndSyndicateContent, {
+    success: false,
+    message: "",
+  })
+  const [syndicationLogs, setSyndicationLogs] = useState<GeneratedPost[]>([])
+  const [isFetchingSyndicationLogs, setIsFetchingSyndicationLogs] = useState(true)
 
   // --- Authorization Effect ---
   useEffect(() => {
@@ -168,7 +222,7 @@ export default function AdminPage() {
     const { data, message } = await getAgentProfileData()
     if (data) {
       // Extract chatbotInstructions and set separate states
-      const { chatbotInstructions, personal, ...restOfProfile } = data
+      const { chatbotInstructions, personal, company, ...restOfProfile } = data
       setAgentRole(chatbotInstructions?.role || "")
       setAgentStyle(chatbotInstructions?.style || "")
       setAgentApproach(chatbotInstructions?.approach || "")
@@ -176,8 +230,24 @@ export default function AdminPage() {
       setInitialGreeting(chatbotInstructions?.initialGreeting || "") // Set initial greeting
       setAgentAvatarPreviewUrl(personal?.avatarUrl || null) // Set avatar URL
 
+      // Set config_data states
+      setBrandVoice(company?.config_data?.content_guidelines?.brand_voice || "")
+      setTone(company?.config_data?.content_guidelines?.tone || "")
+      setKeywordsFocus(company?.config_data?.content_guidelines?.keywords_focus?.join(", ") || "")
+      setAudience(company?.config_data?.content_guidelines?.audience || "")
+      setDefaultIntervalHours(company?.config_data?.syndication_schedule?.default_interval_hours || "")
+      setPlatformSpecificSchedule(
+        JSON.stringify(company?.config_data?.syndication_schedule?.platform_specific || {}, null, 2),
+      )
+
       // Set the rest of the profile JSON to the textarea, ensuring it's an object
-      setProfileJson(JSON.stringify(restOfProfile || {}, null, 2))
+      setProfileJson(
+        JSON.stringify(
+          { personal, professional: restOfProfile.professional, company: { ...company, config_data: undefined } },
+          null,
+          2,
+        ),
+      )
     } else {
       console.error(message || "Failed to fetch agent profile.")
       setProfileJson("{}")
@@ -187,6 +257,12 @@ export default function AdminPage() {
       setAgentLimitations("")
       setInitialGreeting("")
       setAgentAvatarPreviewUrl(null)
+      setBrandVoice("")
+      setTone("")
+      setKeywordsFocus("")
+      setAudience("")
+      setDefaultIntervalHours("")
+      setPlatformSpecificSchedule("{}")
     }
     setIsFetchingProfile(false)
   }, [])
@@ -202,14 +278,31 @@ export default function AdminPage() {
     setIsFetchingQAs(false)
   }, [])
 
+  const fetchSyndicationLogs = useCallback(async () => {
+    setIsFetchingSyndicationLogs(true)
+    try {
+      const { data, message } = await getSyndicationLogs()
+      if (data) {
+        setSyndicationLogs(data)
+      } else {
+        console.error(message || "Failed to fetch syndication logs.")
+      }
+    } catch (error) {
+      console.error("Error fetching syndication logs:", error)
+    } finally {
+      setIsFetchingSyndicationLogs(false)
+    }
+  }, [])
+
   // --- Initial Data Fetching Effect ---
   useEffect(() => {
     if (isAuthorized) {
       fetchFileMetadata()
       fetchAgentProfile()
       fetchTrainingQAs()
+      fetchSyndicationLogs()
     }
-  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs])
+  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs, fetchSyndicationLogs])
 
   // --- Action State Effects (for alerts) ---
   useEffect(() => {
@@ -250,6 +343,16 @@ export default function AdminPage() {
       }
     }
   }, [updateQAState, fetchTrainingQAs])
+
+  useEffect(() => {
+    if (syndicationState.message) {
+      alert(syndicationState.message)
+      if (syndicationState.success) {
+        setGeneratedContentPreview(syndicationState.generatedPost || null)
+        fetchSyndicationLogs() // Re-fetch logs to show new entry
+      }
+    }
+  }, [syndicationState, fetchSyndicationLogs])
 
   // --- File Upload Handlers ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -382,15 +485,35 @@ export default function AdminPage() {
   }
 
   // --- Agent Profile Handlers ---
-  // Find the `handleAgentProfileSave` function and wrap the `profileFormAction` call in `startTransition`
   const handleAgentProfileSave = (e: React.FormEvent) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget as HTMLFormElement)
     formData.append("initialGreeting", initialGreeting)
     formData.append("avatarUrl", agentAvatarPreviewUrl || "")
 
+    // Construct config_data JSON
+    const configData = {
+      company: {
+        config_data: {
+          content_guidelines: {
+            brand_voice: brandVoice,
+            tone: tone,
+            keywords_focus: keywordsFocus
+              .split(",")
+              .map((k) => k.trim())
+              .filter(Boolean),
+            audience: audience,
+          },
+          syndication_schedule: {
+            default_interval_hours: Number(defaultIntervalHours),
+            platform_specific: JSON.parse(platformSpecificSchedule || "{}"),
+          },
+        },
+      },
+    }
+    formData.append("configDataJson", JSON.stringify(configData))
+
     startTransition(() => {
-      // Wrap the action call in startTransition
       profileFormAction(formData)
     })
   }
@@ -481,6 +604,18 @@ export default function AdminPage() {
     )
   }, [trainingQAs, qaFilterQuery])
 
+  // --- Content Generation & Syndication Handlers ---
+  const handleGenerateContent = (e: React.FormEvent) => {
+    e.preventDefault()
+    const formData = new FormData()
+    formData.append("topic", generationTopic)
+    formData.append("platform", generationPlatform)
+    formData.append("contentType", generationContentType)
+    startTransition(() => {
+      syndicateFormAction(formData)
+    })
+  }
+
   if (!connected || !isAuthorized) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -504,6 +639,165 @@ export default function AdminPage() {
             <XIcon className="h-4 w-4" /> Close Editor
           </Button>
         </div>
+
+        {/* Content Generation Section */}
+        <Card className="w-full jupiter-outer-panel p-6">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">AI Content Generation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              Generate new content for various platforms using AI. The generated content will be saved and queued for
+              "syndication".
+            </p>
+            <form onSubmit={handleGenerateContent} className="space-y-4">
+              <div>
+                <Label htmlFor="generation-topic" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Topic
+                </Label>
+                <Input
+                  id="generation-topic"
+                  type="text"
+                  value={generationTopic}
+                  onChange={(e) => setGenerationTopic(e.target.value)}
+                  placeholder="e.g., Latest advancements in AI agents"
+                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                  disabled={isSyndicationPending}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="generation-platform" className="block text-sm font-medium text-muted-foreground mb-1">
+                    Platform
+                  </Label>
+                  <Select
+                    value={generationPlatform}
+                    onValueChange={setGenerationPlatform}
+                    disabled={isSyndicationPending}
+                  >
+                    <SelectTrigger className="w-full bg-neumorphic-base shadow-inner-neumorphic text-white">
+                      <SelectValue placeholder="Select Platform" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-neumorphic-base text-white">
+                      <SelectItem value="twitter">Twitter</SelectItem>
+                      <SelectItem value="linkedin">LinkedIn</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="github">GitHub</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label
+                    htmlFor="generation-content-type"
+                    className="block text-sm font-medium text-muted-foreground mb-1"
+                  >
+                    Content Type
+                  </Label>
+                  <Select
+                    value={generationContentType}
+                    onValueChange={setGenerationContentType}
+                    disabled={isSyndicationPending}
+                  >
+                    <SelectTrigger className="w-full bg-neumorphic-base shadow-inner-neumorphic text-white">
+                      <SelectValue placeholder="Select Content Type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-neumorphic-base text-white">
+                      <SelectItem value="tweet">Tweet</SelectItem>
+                      <SelectItem value="linkedin-post">LinkedIn Post</SelectItem>
+                      <SelectItem value="blog-excerpt">Blog Excerpt</SelectItem>
+                      <SelectItem value="code-snippet">Code Snippet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button
+                type="submit"
+                className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
+                disabled={isSyndicationPending || !generationTopic.trim()}
+              >
+                {isSyndicationPending ? (
+                  "Generating..."
+                ) : (
+                  <>
+                    <Share2Icon className="h-4 w-4 mr-2" /> GENERATE & QUEUE CONTENT
+                  </>
+                )}
+              </Button>
+            </form>
+
+            {generatedContentPreview && (
+              <div className="mt-6 p-4 neumorphic-inset rounded-lg">
+                <h3 className="text-lg font-semibold text-[#afcd4f] mb-2">Generated Content Preview:</h3>
+                {generatedContentPreview.title && (
+                  <p className="text-sm font-medium text-white mb-1">Title: {generatedContentPreview.title}</p>
+                )}
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{generatedContentPreview.content}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Syndication Monitor Section */}
+        <Card className="w-full jupiter-outer-panel p-6 mt-8">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Syndication Monitor</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              View the history of AI-generated content and its syndication status.
+            </p>
+            {isFetchingSyndicationLogs ? (
+              <p className="text-center text-muted-foreground">Loading syndication logs...</p>
+            ) : syndicationLogs.length === 0 ? (
+              <p className="text-center text-muted-foreground">No generated content logs yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {syndicationLogs.map((post) => (
+                  <div
+                    key={post.id}
+                    className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">
+                        <span className="text-[#afcd4f]">Platform:</span> {post.platform} (
+                        {post.content_type.replace("-", " ")})
+                      </p>
+                      {post.title && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          <span className="text-[#afcd4f]">Title:</span> {post.title}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        <span className="text-[#afcd4f]">Status:</span> {post.status}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        <span className="text-[#afcd4f]">Generated:</span>{" "}
+                        {new Date(post.generated_at).toLocaleString()}
+                      </p>
+                      {post.syndicated_at && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          <span className="text-[#afcd4f]">Syndicated:</span>{" "}
+                          {new Date(post.syndicated_at).toLocaleString()}
+                        </p>
+                      )}
+                      <Collapsible className="w-full mt-2">
+                        <CollapsibleTrigger className="flex items-center gap-2 text-xs text-[#2ed3b7] hover:underline">
+                          View Content{" "}
+                          <ChevronDownIcon className="h-3 w-3 transition-transform data-[state=open]:rotate-180" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2 p-2 bg-neumorphic-base rounded-md text-xs text-white whitespace-pre-wrap">
+                          {post.content}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </div>
+                    {/* Add actions like "Retry Syndication" or "Edit" here later */}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Social Post Editor Card */}
         <Card className="w-full jupiter-outer-panel p-6">
@@ -791,6 +1085,100 @@ export default function AdminPage() {
                   )}
                   <input type="hidden" name="avatarUrl" value={agentAvatarPreviewUrl || ""} />{" "}
                   {/* Hidden input to pass URL to action */}
+                </div>
+
+                <h3 className="text-lg font-semibold text-white mb-2 mt-6">Content Guidelines (Config Data)</h3>
+                <div className="space-y-2">
+                  <div>
+                    <Label htmlFor="brand-voice" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Brand Voice
+                    </Label>
+                    <Input
+                      id="brand-voice"
+                      type="text"
+                      value={brandVoice}
+                      onChange={(e) => setBrandVoice(e.target.value)}
+                      placeholder="e.g., professional, innovative, futuristic"
+                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                      disabled={isProfilePending}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tone" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Tone
+                    </Label>
+                    <Input
+                      id="tone"
+                      type="text"
+                      value={tone}
+                      onChange={(e) => setTone(e.target.value)}
+                      placeholder="e.g., informative, confident, accessible"
+                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                      disabled={isProfilePending}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="keywords-focus" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Keywords Focus (comma-separated)
+                    </Label>
+                    <Input
+                      id="keywords-focus"
+                      type="text"
+                      value={keywordsFocus}
+                      onChange={(e) => setKeywordsFocus(e.target.value)}
+                      placeholder="e.g., AI Agents, Web3, Solana, Trading Automation"
+                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                      disabled={isProfilePending}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="audience" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Audience
+                    </Label>
+                    <Input
+                      id="audience"
+                      type="text"
+                      value={audience}
+                      onChange={(e) => setAudience(e.target.value)}
+                      placeholder="e.g., developers, investors, tech enthusiasts"
+                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                      disabled={isProfilePending}
+                    />
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-semibold text-white mb-2 mt-6">Syndication Schedule (Config Data)</h3>
+                <div className="space-y-2">
+                  <div>
+                    <Label htmlFor="default-interval" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Default Interval (Hours)
+                    </Label>
+                    <Input
+                      id="default-interval"
+                      type="number"
+                      value={defaultIntervalHours}
+                      onChange={(e) => setDefaultIntervalHours(e.target.value)}
+                      placeholder="e.g., 24"
+                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                      disabled={isProfilePending}
+                    />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="platform-specific-schedule"
+                      className="block text-sm font-medium text-muted-foreground mb-1"
+                    >
+                      Platform Specific Schedule (JSON)
+                    </Label>
+                    <Textarea
+                      id="platform-specific-schedule"
+                      value={platformSpecificSchedule}
+                      onChange={(e) => setPlatformSpecificSchedule(e.target.value)}
+                      placeholder={`e.g., {"twitter": {"max_per_day": 3}, "linkedin": {"max_per_week": 5}}`}
+                      className="min-h-[120px] bg-neumorphic-base shadow-inner-neumorphic text-white font-mono text-sm"
+                      disabled={isProfilePending}
+                    />
+                  </div>
                 </div>
 
                 <h3 className="text-lg font-semibold text-white mb-2 mt-6">Other Profile Data (JSON)</h3>

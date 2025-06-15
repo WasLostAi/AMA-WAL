@@ -45,19 +45,17 @@ export function Header() {
   useEffect(() => {
     if (connected) {
       if (!isAuthorized) {
-        // If connected but not authorized, redirect to contact form
+        console.warn("Unauthorized wallet connected:", publicKey?.toBase58()) // Log the unauthorized address
         router.push("/contact")
         // Optionally, disconnect the wallet after redirecting
-        // disconnect(); // Uncomment if you want to auto-disconnect unauthorized wallets
+        // disconnect();
       } else {
-        // If connected and authorized, and not already on admin page, navigate to admin
-        // This handles cases where they connect the authorized wallet from the home page
         if (window.location.pathname !== "/admin") {
           router.push("/admin")
         }
       }
     }
-  }, [connected, isAuthorized, router, disconnect]) // Add disconnect to dependencies if used
+  }, [connected, isAuthorized, router, disconnect, publicKey]) // Add publicKey to dependencies
 
   const toggleFeedType = () => {
     setCurrentFeedType((prevType) => (prevType === "twitter" ? "linkedin" : "twitter"))

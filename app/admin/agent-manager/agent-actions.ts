@@ -21,7 +21,10 @@ interface AgentProfileData {
     avatarUrl?: string // New field for avatar URL
   }
   professional: any
-  company: any
+  company: {
+    name: string
+    config_data?: any // Add this new field
+  }
   chatbotInstructions: {
     role: string
     style: string
@@ -73,6 +76,7 @@ export async function updateAgentProfileData(
   const agentApproach = formData.get("agentApproach") as string
   const agentLimitations = formData.get("agentLimitations") as string
   const initialGreeting = formData.get("initialGreeting") as string // New field
+  const configDataJson = formData.get("configDataJson") as string // New field for config data
   const avatarUrl = formData.get("avatarUrl") as string // New field
 
   if (!profileJsonString) {
@@ -88,6 +92,10 @@ export async function updateAgentProfileData(
       personal: {
         ...baseProfile.personal,
         avatarUrl: avatarUrl || baseProfile.personal?.avatarUrl, // Use new URL or keep existing
+      },
+      company: {
+        ...baseProfile.company,
+        ...(configDataJson ? JSON.parse(configDataJson) : {}), // Merge parsed config data
       },
       chatbotInstructions: {
         role: agentRole,

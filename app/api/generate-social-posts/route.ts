@@ -67,6 +67,12 @@ export async function GET(request: Request) {
       console.warn("Using fallback chatbot data due to unexpected error during Supabase fetch.")
     }
 
+    const contentGuidelines = chatbotData.company?.config_data?.content_guidelines || {}
+    const brandVoice = contentGuidelines.brand_voice || "professional, innovative"
+    const tone = contentGuidelines.tone || "informative, confident"
+    const keywordsFocus = contentGuidelines.keywords_focus?.join(", ") || "AI, Web3, Decentralized AI"
+    const audience = contentGuidelines.audience || "tech enthusiasts, developers"
+
     // --- Fetch current project updates from Vercel Blob ---
     let currentProjectUpdates = ""
     try {
@@ -111,6 +117,10 @@ export async function GET(request: Request) {
 
     if (type === "twitter") {
       systemPrompt = `You are a Twitter content generator for a user named @${handle}.
+                      Adhere to the following brand guidelines:
+                      Brand Voice: ${brandVoice}
+                      Tone: ${tone}
+                      Keywords Focus: ${keywordsFocus}
                       Generate 5 recent-looking tweets about AI, Web3, and trading automation.
                       Prioritize content from the "Recent Project Updates" section provided.
                       Each tweet should be concise, realistic, and sound like it comes from a professional in these fields.
@@ -120,6 +130,10 @@ export async function GET(request: Request) {
       prompt = `Generate 5 tweets for @${handle} using the following context:\n${profileContext}`
     } else if (type === "linkedin") {
       systemPrompt = `You are a LinkedIn content generator for a user named @${handle} (Michael P. Robinson).
+                      Adhere to the following brand guidelines:
+                      Brand Voice: ${brandVoice}
+                      Tone: ${tone}
+                      Keywords Focus: ${keywordsFocus}
                       Generate 5 recent-looking LinkedIn posts about professional topics like AI, Web3, decentralized applications, career insights, or company updates.
                       Prioritize content from the "Recent Project Updates" section provided.
                       Each post should be professional, concise, and realistic for a LinkedIn feed.
