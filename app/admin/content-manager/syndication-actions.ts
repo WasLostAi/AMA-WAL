@@ -39,7 +39,7 @@ interface GeneratedPost {
   metadata?: Record<string, any>
 }
 
-const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+// Removed the top-level openaiEmbeddings declaration
 
 // Helper to fetch agent profile data including config_data
 async function getAgentProfileWithConfig(): Promise<{ data: AgentProfileData | null; message?: string }> {
@@ -72,6 +72,10 @@ async function getRagContext(query: string): Promise<string> {
     console.warn("OPENAI_API_KEY not set, skipping RAG context retrieval.")
     return ""
   }
+
+  // Initialize openaiEmbeddings client here, inside the function
+  const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+
   try {
     const { embedding } = await openaiEmbeddings.embeddings.create({
       model: "text-embedding-3-small",
