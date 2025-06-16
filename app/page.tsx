@@ -6,6 +6,7 @@ import { ChatInterface } from "@/components/chat-interface"
 import { FeatureSection } from "@/components/feature-section"
 import { Footer } from "@/components/footer"
 import { getAgentProfileData } from "./admin/agent-manager/agent-actions" // Import agent actions
+import { TwitterFeed } from "@/components/twitter-feed"
 
 export default function HomePage() {
   const [loaded, setLoaded] = useState(false)
@@ -43,6 +44,11 @@ export default function HomePage() {
             className={`transition-all duration-700 delay-500 ${loaded ? "opacity-100 transform-none" : "opacity-0 translate-y-10"}`}
           >
             <FeatureSection />
+          </div>
+          <div
+            className={`transition-all duration-700 delay-700 ${loaded ? "opacity-100 transform-none" : "opacity-0 translate-y-10"}`}
+          >
+            <TwitterFeed />
           </div>
         </div>
       </div>

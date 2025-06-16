@@ -103,7 +103,9 @@ export async function getBlogPosts(): Promise<{ data: BlogPost[] | null; message
     let errorMessage =
       "Failed to fetch blog posts. Please check your database connection and ensure the 'blog_posts' table exists and is correctly migrated."
 
-    if (error.message) {
+    if (error instanceof SyntaxError) {
+      errorMessage = `Failed to fetch blog posts: Received an invalid response from the database or proxy. This often indicates a problem with the POSTGRES_URL, network connectivity, or database availability. Original error: ${error.message}`
+    } else if (error.message) {
       if (error.message.includes('relation "blog_posts" does not exist')) {
         errorMessage =
           "Failed to fetch blog posts: The 'blog_posts' table does not exist. Please run the database migration scripts."
@@ -135,7 +137,9 @@ export async function getPublishedBlogPosts(): Promise<{ data: BlogPost[] | null
     let errorMessage =
       "Failed to fetch published blog posts. Please check your database connection and ensure the 'blog_posts' table exists and is correctly migrated."
 
-    if (error.message) {
+    if (error instanceof SyntaxError) {
+      errorMessage = `Failed to fetch published blog posts: Received an invalid response from the database or proxy. This often indicates a problem with the POSTGRES_URL, network connectivity, or database availability. Original error: ${error.message}`
+    } else if (error.message) {
       if (error.message.includes('relation "blog_posts" does not exist')) {
         errorMessage =
           "Failed to fetch published blog posts: The 'blog_posts' table does not exist. Please run the database migration scripts."
@@ -168,7 +172,9 @@ export async function getBlogPostBySlug(slug: string): Promise<{ data: BlogPost 
   } catch (error: any) {
     console.error(`Error fetching blog post with slug ${slug}:`, error)
     let errorMessage = "Failed to fetch blog post."
-    if (error.message) {
+    if (error instanceof SyntaxError) {
+      errorMessage = `Failed to fetch blog post: Received an invalid response from the database or proxy. This often indicates a problem with the POSTGRES_URL, network connectivity, or database availability. Original error: ${error.message}`
+    } else if (error.message) {
       errorMessage = `Failed to fetch blog post: ${error.message}`
     }
     return { data: null, message: errorMessage }
