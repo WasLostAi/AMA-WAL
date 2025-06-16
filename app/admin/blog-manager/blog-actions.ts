@@ -103,18 +103,16 @@ export async function getBlogPosts(): Promise<{ data: BlogPost[] | null; message
     let errorMessage =
       "Failed to fetch blog posts. Please check your database connection and ensure the 'blog_posts' table exists and is correctly migrated."
 
-    if (error instanceof SyntaxError) {
-      errorMessage = `Failed to fetch blog posts: Received an invalid response from the database or proxy. This often indicates a problem with the POSTGRES_URL, network connectivity, or database availability. Original error: ${error.message}`
+    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
+      errorMessage = `Failed to fetch blog posts: The database response was not valid JSON. This specific error often indicates an issue with your POSTGRES_URL, database connectivity, or that the database server is returning a non-JSON error (e.g., an HTML error page). Original error: ${error.message}`
+    } else if (error.message && error.message.includes('relation "blog_posts" does not exist')) {
+      errorMessage =
+        "Failed to fetch blog posts: The 'blog_posts' table does not exist. Please run the database migration scripts."
+    } else if (error.message && error.message.includes("Invalid response from database")) {
+      errorMessage =
+        "Failed to fetch blog posts: Invalid response from database. This might indicate a connection issue or a malformed query."
     } else if (error.message) {
-      if (error.message.includes('relation "blog_posts" does not exist')) {
-        errorMessage =
-          "Failed to fetch blog posts: The 'blog_posts' table does not exist. Please run the database migration scripts."
-      } else if (error.message.includes("Invalid response from database")) {
-        errorMessage =
-          "Failed to fetch blog posts: Invalid response from database. This might indicate a connection issue or a malformed query."
-      } else {
-        errorMessage = `Failed to fetch blog posts: ${error.message}`
-      }
+      errorMessage = `Failed to fetch blog posts: ${error.message}`
     }
 
     return { data: null, message: errorMessage }
@@ -137,18 +135,16 @@ export async function getPublishedBlogPosts(): Promise<{ data: BlogPost[] | null
     let errorMessage =
       "Failed to fetch published blog posts. Please check your database connection and ensure the 'blog_posts' table exists and is correctly migrated."
 
-    if (error instanceof SyntaxError) {
-      errorMessage = `Failed to fetch published blog posts: Received an invalid response from the database or proxy. This often indicates a problem with the POSTGRES_URL, network connectivity, or database availability. Original error: ${error.message}`
+    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
+      errorMessage = `Failed to fetch published blog posts: The database response was not valid JSON. This specific error often indicates an issue with your POSTGRES_URL, database connectivity, or that the database server is returning a non-JSON error (e.g., an HTML error page). Original error: ${error.message}`
+    } else if (error.message && error.message.includes('relation "blog_posts" does not exist')) {
+      errorMessage =
+        "Failed to fetch published blog posts: The 'blog_posts' table does not exist. Please run the database migration scripts."
+    } else if (error.message && error.message.includes("Invalid response from database")) {
+      errorMessage =
+        "Failed to fetch published blog posts: Invalid response from database. This might indicate a connection issue or a malformed query."
     } else if (error.message) {
-      if (error.message.includes('relation "blog_posts" does not exist')) {
-        errorMessage =
-          "Failed to fetch published blog posts: The 'blog_posts' table does not exist. Please run the database migration scripts."
-      } else if (error.message.includes("Invalid response from database")) {
-        errorMessage =
-          "Failed to fetch published blog posts: Invalid response from database. This might indicate a connection issue or a malformed query."
-      } else {
-        errorMessage = `Failed to fetch published blog posts: ${error.message}`
-      }
+      errorMessage = `Failed to fetch published blog posts: ${error.message}`
     }
 
     return { data: null, message: errorMessage }
@@ -172,8 +168,8 @@ export async function getBlogPostBySlug(slug: string): Promise<{ data: BlogPost 
   } catch (error: any) {
     console.error(`Error fetching blog post with slug ${slug}:`, error)
     let errorMessage = "Failed to fetch blog post."
-    if (error instanceof SyntaxError) {
-      errorMessage = `Failed to fetch blog post: Received an invalid response from the database or proxy. This often indicates a problem with the POSTGRES_URL, network connectivity, or database availability. Original error: ${error.message}`
+    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
+      errorMessage = `Failed to fetch blog post: The database response was not valid JSON. This specific error often indicates an issue with your POSTGRES_URL, database connectivity, or that the database server is returning a non-JSON error (e.g., an HTML error page). Original error: ${error.message}`
     } else if (error.message) {
       errorMessage = `Failed to fetch blog post: ${error.message}`
     }
@@ -206,9 +202,9 @@ export async function createBlogPost(
 
     // Correctly pass the keywords array to the TEXT[] column
     await sql`
-      INSERT INTO blog_posts (title, slug, content, status, meta_description, keywords, featured_image_url, generated_at)
-      VALUES (${title}, ${slug}, ${content}, ${status}, ${meta_description}, ${keywords}, ${featured_image_url}, NOW());
-    `
+    INSERT INTO blog_posts (title, slug, content, status, meta_description, keywords, featured_image_url, generated_at)
+    VALUES (${title}, ${slug}, ${content}, ${status}, ${meta_description}, ${keywords}, ${featured_image_url}, NOW());
+  `
 
     revalidatePath("/blog")
     revalidatePath("/sitemap.xml")
@@ -253,18 +249,18 @@ export async function updateBlogPost(
 
     // Correctly pass the keywords array to the TEXT[] column
     await sql`
-      UPDATE blog_posts
-      SET
-        title = ${title},
-        slug = ${slug},
-        content = ${content},
-        status = ${status},
-        meta_description = ${meta_description},
-        keywords = ${keywords},
-        featured_image_url = ${new_featured_image_url},
-        updated_at = NOW()
-      WHERE id = ${id};
-    `
+    UPDATE blog_posts
+    SET
+      title = ${title},
+      slug = ${slug},
+      content = ${content},
+      status = ${status},
+      meta_description = ${meta_description},
+      keywords = ${keywords},
+      featured_image_url = ${new_featured_image_url},
+      updated_at = NOW()
+    WHERE id = ${id};
+  `
 
     revalidatePath("/blog")
     revalidatePath(`/blog/${slug}`)

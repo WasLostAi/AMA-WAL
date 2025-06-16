@@ -1162,12 +1162,17 @@ export default function AdminPage() {
                 <Label htmlFor="blog-content" className="block text-sm font-medium text-muted-foreground mb-1">
                   Content (Markdown)
                 </Label>
-                <RichTextEditor
-                  value={blogPostContent}
-                  onChange={setBlogPostContent}
-                  disabled={isBlogPostSaving}
-                  placeholder="Write your blog post content here..."
-                />
+                <div className="relative overflow-hidden">
+                  {" "}
+                  {/* Add this wrapper */}
+                  <RichTextEditor
+                    value={blogPostContent}
+                    onChange={setBlogPostContent}
+                    disabled={isBlogPostSaving}
+                    placeholder="Write your blog post content here..."
+                  />
+                </div>{" "}
+                {/* Close the wrapper */}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
