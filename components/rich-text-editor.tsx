@@ -5,14 +5,25 @@ import { useCallback, useEffect } from "react"
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Link from "@tiptap/extension-link"
-// Remove the import for the problematic extension
-//- import Markdown from "@tiptap/extension-markdown" // For Markdown input/output
-// Add imports for client-side Markdown/HTML conversion libraries
 import TurndownService from "turndown"
 import { marked } from "marked"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { BoldIcon, ItalicIcon, ListIcon, ListOrderedIcon, Heading2Icon, Heading3Icon, LinkIcon, UnlinkIcon, CodeIcon, QuoteIcon, MinusIcon, RedoIcon, UndoIcon } from 'lucide-react'
+import {
+  BoldIcon,
+  ItalicIcon,
+  ListIcon,
+  ListOrderedIcon,
+  Heading2Icon,
+  Heading3Icon,
+  LinkIcon,
+  UnlinkIcon,
+  CodeIcon,
+  QuoteIcon,
+  MinusIcon,
+  RedoIcon,
+  UndoIcon,
+} from "lucide-react"
 
 interface RichTextEditorProps {
   value: string
@@ -25,58 +36,43 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, disabl
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // Disable default extensions if you want to configure them individually
-        // For example, if you want to use a custom Link extension
-        // Or if you want to disable specific nodes/marks
         heading: {
-          levels: [2, 3], // Only allow H2 and H3
+          levels: [2, 3],
         },
         blockquote: true,
         codeBlock: true,
-        hardBreak: false, // Prevent hard breaks on Enter
+        hardBreak: false,
       }),
       Link.configure({
         autolink: true,
-        openOnClick: false, // Don't open link on click in editor
+        openOnClick: false,
         HTMLAttributes: {
           target: "_blank",
-          rel: "noopener noreferrer nofollow", // Add nofollow for SEO
+          rel: "noopener noreferrer nofollow",
         },
       }),
-      // In the `useEditor` hook, remove `Markdown` from the `extensions` array
-      // Find the `extensions` array and remove the `Markdown,` line:
-      //-   Markdown, // Enable Markdown input/output
     ],
-    content: value, // Initial content from prop
+    content: value,
     editorProps: {
       attributes: {
         class: cn(
-          "prose prose-invert max-w-none", // Apply prose styles for rendered content
+          "prose prose-invert max-w-none",
           "min-h-[300px] p-4 rounded-lg",
           "bg-neumorphic-base shadow-inner-neumorphic text-white",
           "focus:outline-none focus:ring-2 focus:ring-[#afcd4f]",
-          "overflow-y-auto", // Enable scrolling for long content
+          "overflow-y-auto",
           disabled ? "opacity-70 cursor-not-allowed" : "",
         ),
       },
     },
-    // Update the `onUpdate` callback to use `turndown` for Markdown output
-    // Find the `onUpdate` function:
     onUpdate: ({ editor }) => {
-      // Get Markdown content and pass it to onChange
-      //-   onChange(editor.storage.markdown.getMarkdown())
       onChange(new TurndownService().turndown(editor.getHTML()))
     },
     editable: !disabled,
   })
 
-  // Update the `useEffect` hook that syncs the `value` prop with the editor
-  // Find the `useEffect` hook that starts with `useEffect(() => {`
   useEffect(() => {
-    if (editor && editor.getHTML() !== marked.parse(value)) { // Compare HTML with parsed Markdown
-      // Only update if the external value is different from current editor content
-      // This prevents infinite loops if onChange also updates the value prop
-      //-     editor.commands.setContent(value, false, { preserveCursor: true })
+    if (editor && editor.getHTML() !== marked.parse(value)) {
       editor.commands.setContent(marked.parse(value), false, { preserveCursor: true })
     }
   }, [value, editor])
@@ -87,18 +83,15 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, disabl
     const previousUrl = editor.getAttributes("link").href
     const url = window.prompt("URL", previousUrl)
 
-    // cancelled
     if (url === null) {
       return
     }
 
-    // empty string was set
     if (url === "") {
       editor.chain().focus().extendMarkRange("link").unsetLink().run()
       return
     }
 
-    // update link
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run()
   }, [editor])
 
@@ -238,7 +231,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, disabl
         <Button
           type="button"
           onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo().run() || disabled}
+          disabled={!editor.can().undo() || disabled}
           className="jupiter-button-dark h-8 w-8 p-0 bg-neumorphic-base"
           aria-label="Undo"
         >
@@ -247,7 +240,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, disabl
         <Button
           type="button"
           onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo().run() || disabled}
+          disabled={!editor.can().redo() || disabled}
           className="jupiter-button-dark h-8 w-8 p-0 bg-neumorphic-base"
           aria-label="Redo"
         >

@@ -23,24 +23,39 @@ import {
   FileIcon,
   ChevronDownIcon,
   Share2Icon,
+  EditIcon,
+  EyeIcon,
+  EyeOffIcon,
+  CopyIcon,
+  RefreshCwIcon,
 } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import Image from "next/image" // Import Image component
+import RichTextEditor from "@/components/rich-text-editor" // Import RichTextEditor
 
 // Import all necessary server actions
 import { saveSocialPostsMarkdown } from "./content-manager/social-post-actions"
 import { uploadFileWithTag, getFileMetadata, deleteFile } from "./content-manager/file-upload-actions"
 import { suggestTagsFromFile } from "./content-manager/ai-tagging-action"
+import { generateHashtags } from "./content-manager/hashtag-actions" // New import
+import { generateSeoMetadata, revalidateSiteData } from "./content-manager/seo-actions" // New import
 import {
   getAgentProfileData,
   updateAgentProfileData,
-  uploadAgentAvatar, // New import
+  uploadAgentAvatar,
   getTrainingQAs,
   addTrainingQA,
   updateTrainingQA,
   deleteTrainingQA,
 } from "./agent-manager/agent-actions"
-import { generateAndSyndicateContent, getSyndicationLogs } from "./content-manager/syndication-actions" // New imports
+import { generateAndSyndicateContent, getSyndicationLogs } from "./content-manager/syndication-actions"
+import {
+  getBlogPosts, // New import
+  createBlogPost, // New import
+  updateBlogPost, // New import
+  deleteBlogPost, // New import
+  type BlogPost, // New import
+} from "./blog-manager/blog-actions"
 import { initialProjectUpdatesMarkdown } from "@/lib/current-projects"
 
 interface FileMetadata {
@@ -129,6 +144,8 @@ export default function AdminPage() {
     message: "",
     success: false,
   })
+  const [generatedHashtags, setGeneratedHashtags] = useState<string>("") // New state for hashtags
+  const [isGeneratingHashtags, setIsGeneratingHashtags] = useState(false) // New state for hashtag generation pending
 
   // --- File Uploads State ---
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
@@ -195,6 +212,29 @@ export default function AdminPage() {
   })
   const [syndicationLogs, setSyndicationLogs] = useState<GeneratedPost[]>([])
   const [isFetchingSyndicationLogs, setIsFetchingSyndicationLogs] = useState(true)
+
+  // --- Blog Post & SEO Manager State ---
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  const [isFetchingBlogPosts, setIsFetchingBlogPosts] = useState(true)
+  const [editingBlogPost, setEditingBlogPost] = useState<BlogPost | null>(null)
+  const [blogPostTitle, setBlogPostTitle] = useState("")
+  const [blogPostSlug, setBlogPostSlug] = useState("")
+  const [blogPostContent, setBlogPostContent] = useState("")
+  const [blogPostStatus, setBlogPostStatus] = useState<BlogPost["status"]>("draft")
+  const [blogPostMetaDescription, setBlogPostMetaDescription] = useState("")
+  const [blogPostKeywords, setBlogPostKeywords] = useState("") // Comma-separated string
+  const [blogPostFeaturedImage, setBlogPostFeaturedImage] = useState<File | null>(null)
+  const [blogPostFeaturedImagePreview, setBlogPostFeaturedImagePreview] = useState<string | null>(null)
+  const blogPostFeaturedImageInputRef = useRef<HTMLInputElement>(null)
+  const [isGeneratingSeo, setIsGeneratingSeo] = useState(false)
+  const [isBlogPostSaving, setIsBlogPostSaving] = useState(false) // For create/update
+  const [revalidateSiteDataState, revalidateSiteDataAction, isRevalidatingSiteData] = useActionState(
+    revalidateSiteData,
+    {
+      success: false,
+      message: "",
+    },
+  )
 
   // --- Authorization Effect ---
   useEffect(() => {
@@ -294,6 +334,22 @@ export default function AdminPage() {
     }
   }, [])
 
+  const fetchBlogPosts = useCallback(async () => {
+    setIsFetchingBlogPosts(true)
+    try {
+      const { data, message } = await getBlogPosts()
+      if (data) {
+        setBlogPosts(data)
+      } else {
+        console.error(message || "Failed to fetch blog posts.")
+      }
+    } catch (error) {
+      console.error("Error fetching blog posts:", error)
+    } finally {
+      setIsFetchingBlogPosts(false)
+    }
+  }, [])
+
   // --- Initial Data Fetching Effect ---
   useEffect(() => {
     if (isAuthorized) {
@@ -301,8 +357,9 @@ export default function AdminPage() {
       fetchAgentProfile()
       fetchTrainingQAs()
       fetchSyndicationLogs()
+      fetchBlogPosts() // Fetch blog posts on load
     }
-  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs, fetchSyndicationLogs])
+  }, [isAuthorized, fetchFileMetadata, fetchAgentProfile, fetchTrainingQAs, fetchSyndicationLogs, fetchBlogPosts])
 
   // --- Action State Effects (for alerts) ---
   useEffect(() => {
@@ -353,6 +410,12 @@ export default function AdminPage() {
       }
     }
   }, [syndicationState, fetchSyndicationLogs])
+
+  useEffect(() => {
+    if (revalidateSiteDataState.message) {
+      alert(revalidateSiteDataState.message)
+    }
+  }, [revalidateSiteDataState])
 
   // --- File Upload Handlers ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -616,6 +679,152 @@ export default function AdminPage() {
     })
   }
 
+  // --- Hashtag Generator Handler ---
+  const handleGenerateHashtags = async () => {
+    if (!markdownContent.trim()) {
+      alert("Please enter some content in the Social Post Editor to generate hashtags.")
+      return
+    }
+    setIsGeneratingHashtags(true)
+    try {
+      const result = await generateHashtags(markdownContent)
+      if (result.success && result.hashtags.length > 0) {
+        setGeneratedHashtags(result.hashtags.join(" "))
+      } else {
+        alert(result.message || "Failed to generate hashtags.")
+      }
+    } catch (error) {
+      console.error("Error generating hashtags:", error)
+      alert("An error occurred while generating hashtags.")
+    } finally {
+      setIsGeneratingHashtags(false)
+    }
+  }
+
+  // --- Blog Post & SEO Manager Handlers ---
+  const handleNewBlogPost = () => {
+    setEditingBlogPost(null) // Clear any existing edit
+    setBlogPostTitle("")
+    setBlogPostSlug("")
+    setBlogPostContent("")
+    setBlogPostStatus("draft")
+    setBlogPostMetaDescription("")
+    setBlogPostKeywords("")
+    setBlogPostFeaturedImage(null)
+    setBlogPostFeaturedImagePreview(null)
+    window.scrollTo({ top: document.getElementById("blog-post-form")?.offsetTop || 0, behavior: "smooth" })
+  }
+
+  const handleEditBlogPost = (post: BlogPost) => {
+    setEditingBlogPost(post)
+    setBlogPostTitle(post.title)
+    setBlogPostSlug(post.slug)
+    setBlogPostContent(post.content)
+    setBlogPostStatus(post.status)
+    setBlogPostMetaDescription(post.meta_description || "")
+    setBlogPostKeywords(post.keywords?.join(", ") || "")
+    setBlogPostFeaturedImage(null) // Clear file input
+    setBlogPostFeaturedImagePreview(post.featured_image_url || null)
+    window.scrollTo({ top: document.getElementById("blog-post-form")?.offsetTop || 0, behavior: "smooth" })
+  }
+
+  const handleBlogPostSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsBlogPostSaving(true)
+
+    const formData = new FormData()
+    formData.append("title", blogPostTitle)
+    formData.append("slug", blogPostSlug)
+    formData.append("content", blogPostContent)
+    formData.append("status", blogPostStatus)
+    formData.append("meta_description", blogPostMetaDescription)
+    formData.append("keywords", blogPostKeywords)
+
+    if (blogPostFeaturedImage) {
+      formData.append("featuredImage", blogPostFeaturedImage)
+    } else if (blogPostFeaturedImagePreview) {
+      formData.append("existingImageUrl", blogPostFeaturedImagePreview)
+    } else {
+      formData.append("clearFeaturedImage", "true") // Explicitly clear if no new image and no preview
+    }
+
+    let result
+    if (editingBlogPost) {
+      formData.append("id", editingBlogPost.id)
+      result = await updateBlogPost(null, formData)
+    } else {
+      result = await createBlogPost(null, formData)
+    }
+
+    if (result.success) {
+      alert(result.message)
+      handleNewBlogPost() // Reset form
+      fetchBlogPosts() // Re-fetch list
+    } else {
+      alert(result.message)
+    }
+    setIsBlogPostSaving(false)
+  }
+
+  const handleDeleteBlogPost = async (id: string) => {
+    if (confirm("Are you sure you want to delete this blog post? This action cannot be undone.")) {
+      const { success, message } = await deleteBlogPost(id)
+      alert(message)
+      if (success) {
+        fetchBlogPosts()
+      }
+    }
+  }
+
+  const handleGenerateSeo = async () => {
+    if (!blogPostTitle.trim() || !blogPostContent.trim()) {
+      alert("Please enter a title and content for the blog post to generate SEO metadata.")
+      return
+    }
+    setIsGeneratingSeo(true)
+    try {
+      const result = await generateSeoMetadata(blogPostContent, blogPostTitle)
+      if (result.success) {
+        setBlogPostMetaDescription(result.metaDescription)
+        setBlogPostKeywords(result.keywords.join(", "))
+        alert("SEO metadata generated successfully!")
+      } else {
+        alert(result.message || "Failed to generate SEO metadata.")
+      }
+    } catch (error) {
+      console.error("Error generating SEO metadata:", error)
+      alert("An error occurred while generating SEO metadata.")
+    } finally {
+      setIsGeneratingSeo(false)
+    }
+  }
+
+  const handleBlogPostFeaturedImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith("image/")) {
+      setBlogPostFeaturedImage(file)
+      setBlogPostFeaturedImagePreview(URL.createObjectURL(file))
+    } else {
+      setBlogPostFeaturedImage(null)
+      setBlogPostFeaturedImagePreview(null)
+      alert("Please select an image file (PNG, JPEG, GIF) for the featured image.")
+    }
+  }
+
+  const handleClearBlogPostFeaturedImage = () => {
+    setBlogPostFeaturedImage(null)
+    setBlogPostFeaturedImagePreview(null)
+    if (blogPostFeaturedImageInputRef.current) {
+      blogPostFeaturedImageInputRef.current.value = "" // Clear file input visually
+    }
+  }
+
+  const handleRevalidateSiteData = () => {
+    startTransition(() => {
+      revalidateSiteDataAction(null)
+    })
+  }
+
   if (!connected || !isAuthorized) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -639,6 +848,31 @@ export default function AdminPage() {
             <XIcon className="h-4 w-4" /> Close Editor
           </Button>
         </div>
+
+        {/* Site Data Revalidation */}
+        <Card className="w-full jupiter-outer-panel p-6">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Site Data & SEO Tools</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              Manually revalidate your sitemap, RSS feed, and blog pages to ensure the latest content is reflected.
+            </p>
+            <Button
+              onClick={handleRevalidateSiteData}
+              className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
+              disabled={isRevalidatingSiteData}
+            >
+              {isRevalidatingSiteData ? (
+                "Revalidating..."
+              ) : (
+                <>
+                  <RefreshCwIcon className="h-4 w-4 mr-2" /> Revalidate Site Data
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Content Generation Section */}
         <Card className="w-full jupiter-outer-panel p-6">
@@ -817,6 +1051,38 @@ export default function AdminPage() {
                 placeholder="Paste your Markdown content here..."
                 className="min-h-[400px] bg-neumorphic-base shadow-inner-neumorphic text-white p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#afcd4f]"
               />
+              <div className="space-y-2">
+                <Label htmlFor="generated-hashtags" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Generated Hashtags
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="generated-hashtags"
+                    type="text"
+                    value={generatedHashtags}
+                    onChange={(e) => setGeneratedHashtags(e.target.value)}
+                    placeholder="Click 'Generate Hashtags' to populate"
+                    className="flex-1 bg-neumorphic-base shadow-inner-neumorphic text-white"
+                    readOnly
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(generatedHashtags)}
+                    className="jupiter-button-dark h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base flex items-center gap-2"
+                    disabled={!generatedHashtags || generatedHashtags.trim() === ""}
+                  >
+                    <CopyIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleGenerateHashtags}
+                  className="jupiter-button-dark w-full h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base flex items-center gap-2"
+                  disabled={isGeneratingHashtags || !markdownContent.trim()}
+                >
+                  {isGeneratingHashtags ? "Generating..." : <SparklesIcon className="h-4 w-4 mr-2" />} Generate Hashtags
+                </Button>
+              </div>
               <Button
                 type="submit"
                 className="jupiter-button-dark w-full h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
@@ -825,6 +1091,286 @@ export default function AdminPage() {
                 {isSocialPostPending ? "Committing..." : "COMMIT SOCIAL POST UPDATES"}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* Blog Post & SEO Manager Card */}
+        <Card className="w-full jupiter-outer-panel p-6 mt-8">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Blog Post & SEO Manager</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              Create, edit, and manage your blog posts. Use AI to generate SEO-friendly meta descriptions and keywords.
+            </p>
+
+            <div className="flex justify-end mb-4">
+              <Button
+                onClick={handleNewBlogPost}
+                className="jupiter-button-dark h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base flex items-center gap-2"
+              >
+                <PlusIcon className="h-4 w-4" /> New Blog Post
+              </Button>
+            </div>
+
+            <form
+              onSubmit={handleBlogPostSave}
+              className="space-y-4 mb-8 p-4 neumorphic-inset rounded-lg"
+              id="blog-post-form"
+            >
+              <h3 className="text-lg font-semibold text-white">
+                {editingBlogPost ? "Edit Blog Post" : "Create New Blog Post"}
+              </h3>
+              <div>
+                <Label htmlFor="blog-title" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Title
+                </Label>
+                <Input
+                  id="blog-title"
+                  type="text"
+                  value={blogPostTitle}
+                  onChange={(e) => setBlogPostTitle(e.target.value)}
+                  placeholder="Your amazing blog post title"
+                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                  disabled={isBlogPostSaving}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="blog-slug" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Slug (URL Path)
+                </Label>
+                <Input
+                  id="blog-slug"
+                  type="text"
+                  value={blogPostSlug}
+                  onChange={(e) =>
+                    setBlogPostSlug(
+                      e.target.value
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")
+                        .replace(/[^a-z0-9-]/g, ""),
+                    )
+                  }
+                  placeholder="your-amazing-blog-post-title"
+                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                  disabled={isBlogPostSaving}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="blog-content" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Content (Markdown)
+                </Label>
+                <RichTextEditor
+                  value={blogPostContent}
+                  onChange={setBlogPostContent}
+                  disabled={isBlogPostSaving}
+                  placeholder="Write your blog post content here..."
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="blog-status" className="block text-sm font-medium text-muted-foreground mb-1">
+                    Status
+                  </Label>
+                  <Select
+                    value={blogPostStatus}
+                    onValueChange={(value) => setBlogPostStatus(value as BlogPost["status"])}
+                    disabled={isBlogPostSaving}
+                  >
+                    <SelectTrigger className="w-full bg-neumorphic-base shadow-inner-neumorphic text-white">
+                      <SelectValue placeholder="Select Status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-neumorphic-base text-white">
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="featured-image" className="block text-sm font-medium text-muted-foreground mb-1">
+                    Featured Image
+                  </Label>
+                  <Input
+                    id="featured-image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleBlogPostFeaturedImageChange}
+                    ref={blogPostFeaturedImageInputRef}
+                    className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                    disabled={isBlogPostSaving}
+                  />
+                  {blogPostFeaturedImagePreview && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Image
+                        src={blogPostFeaturedImagePreview || "/placeholder.svg"}
+                        alt="Featured Image Preview"
+                        width={100}
+                        height={60}
+                        className="rounded-md object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearBlogPostFeaturedImage}
+                        className="text-red-500 hover:bg-red-500/20"
+                      >
+                        Clear Image
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <h4 className="text-md font-semibold text-white mt-4 mb-2">SEO Metadata</h4>
+              <div className="space-y-2">
+                <div>
+                  <Label htmlFor="meta-description" className="block text-sm font-medium text-muted-foreground mb-1">
+                    Meta Description (for search engines)
+                  </Label>
+                  <Textarea
+                    id="meta-description"
+                    value={blogPostMetaDescription}
+                    onChange={(e) => setBlogPostMetaDescription(e.target.value)}
+                    placeholder="A concise summary of your blog post for search results."
+                    className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
+                    disabled={isBlogPostSaving}
+                    maxLength={160}
+                  />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {blogPostMetaDescription.length} / 160 characters
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="keywords" className="block text-sm font-medium text-muted-foreground mb-1">
+                    Keywords (comma-separated)
+                  </Label>
+                  <Input
+                    id="keywords"
+                    type="text"
+                    value={blogPostKeywords}
+                    onChange={(e) => setBlogPostKeywords(e.target.value)}
+                    placeholder="e.g., AI, Web3, Solana, Trading"
+                    className="bg-neumorphic-base shadow-inner-neumorphic text-white"
+                    disabled={isBlogPostSaving}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleGenerateSeo}
+                  className="jupiter-button-dark w-full h-10 px-4 bg-neumorphic-base hover:bg-neumorphic-base flex items-center gap-2"
+                  disabled={isGeneratingSeo || !blogPostTitle.trim() || !blogPostContent.trim()}
+                >
+                  {isGeneratingSeo ? "Generating..." : <SparklesIcon className="h-4 w-4 mr-2" />} Generate SEO Metadata
+                </Button>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  className="jupiter-button-dark flex-1 h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
+                  disabled={
+                    isBlogPostSaving || !blogPostTitle.trim() || !blogPostSlug.trim() || !blogPostContent.trim()
+                  }
+                >
+                  {isBlogPostSaving ? (
+                    editingBlogPost ? (
+                      "Saving Changes..."
+                    ) : (
+                      "Creating Post..."
+                    )
+                  ) : (
+                    <>
+                      <SaveIcon className="h-4 w-4 mr-2" /> {editingBlogPost ? "SAVE BLOG POST" : "CREATE BLOG POST"}
+                    </>
+                  )}
+                </Button>
+                {editingBlogPost && (
+                  <Button
+                    type="button"
+                    onClick={handleNewBlogPost}
+                    variant="ghost"
+                    className="h-12 px-6 text-muted-foreground hover:text-white"
+                    disabled={isBlogPostSaving}
+                  >
+                    Cancel Edit
+                  </Button>
+                )}
+              </div>
+            </form>
+
+            <Collapsible className="w-full mt-8">
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 neumorphic-inset rounded-lg text-white font-semibold text-lg mb-4">
+                Existing Blog Posts
+                <ChevronDownIcon className="h-5 w-5 transition-transform data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4">
+                {isFetchingBlogPosts ? (
+                  <p className="text-center text-muted-foreground">Loading blog posts...</p>
+                ) : blogPosts.length === 0 ? (
+                  <p className="text-center text-muted-foreground">No blog posts found yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {blogPosts.map((post) => (
+                      <div
+                        key={post.id}
+                        className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-white">{post.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Slug: {post.slug}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Status: {post.status}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Last Updated: {new Date(post.updated_at || post.generated_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0 mt-2 md:mt-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditBlogPost(post)}
+                            className="text-[#afcd4f] hover:bg-[#afcd4f]/20"
+                            aria-label={`Edit blog post: ${post.title}`}
+                          >
+                            <EditIcon className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteBlogPost(post.id)}
+                            className="text-red-500 hover:bg-red-500/20"
+                            aria-label={`Delete blog post: ${post.title}`}
+                          >
+                            <Trash2Icon className="h-4 w-4" />
+                          </Button>
+                          {post.status === "published" ? (
+                            <a
+                              href={`/blog/${post.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 w-10 p-0 text-[#2ed3b7] hover:bg-[#2ed3b7]/20"
+                              aria-label={`View published blog post: ${post.title}`}
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <span
+                              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors h-10 w-10 p-0 text-muted-foreground cursor-not-allowed"
+                              aria-label={`Blog post is not published: ${post.title}`}
+                            >
+                              <EyeOffIcon className="h-4 w-4" />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
 

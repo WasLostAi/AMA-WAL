@@ -1,23 +1,51 @@
-import { NextResponse } from "next/server"
+import { getPublishedBlogPosts } from "@/app/admin/blog-manager/blog-actions"
+import { absoluteUrl } from "@/lib/utils"
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000" // Use Vercel URL or fallback
+  const baseUrl = absoluteUrl("/")
 
-  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  const { data: blogPosts } = await getPublishedBlogPosts()
+
+  const blogPostUrls =
+    blogPosts?.map((post) => ({
+      url: `${baseUrl}blog/${post.slug}`,
+      lastModified: post.updated_at || post.generated_at,
+    })) || []
+
+  return new Response(
+    `<?xml version="1.0" encoding="UTF-8" ?>
+    <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
       <url>
         <loc>${baseUrl}</loc>
         <lastmod>${new Date().toISOString()}</lastmod>
-        <changefreq>daily</changefreq>
-        <priority>1.0</priority>
       </url>
-    </urlset>
-  `
-
-  return new NextResponse(sitemap, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/xml",
+      <url>
+        <loc>${baseUrl}blog</loc>
+        <lastmod>${new Date().toISOString()}</lastmod>
+      </url>
+      <url>
+        <loc>${baseUrl}contact</loc>
+        <lastmod>${new Date().toISOString()}</lastmod>
+      </url>
+      <url>
+        <loc>${baseUrl}admin</loc>
+        <lastmod>${new Date().toISOString()}</lastmod>
+      </url>
+      ${blogPostUrls
+        .map(
+          (url) => `
+        <url>
+          <loc>${url.url}</loc>
+          <lastmod>${new Date(url.lastModified).toISOString()}</lastmod>
+        </url>
+      `,
+        )
+        .join("")}
+    </urlset>`,
+    {
+      headers: {
+        "Content-Type": "text/xml",
+      },
     },
-  })
+  )
 }

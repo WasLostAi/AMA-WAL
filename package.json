@@ -50,6 +50,7 @@
     "@tiptap/react": "latest",
     "@tiptap/starter-kit": "latest",
     "@vercel/blob": "latest",
+    "@vercel/postgres": "latest",
     "ai": "latest",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
