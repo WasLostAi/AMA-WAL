@@ -23,7 +23,14 @@ export async function generateSeoMetadata(
       Content: ${content}`,
     })
 
-    const parsedResult = JSON.parse(text)
+    const rawAiResponse = text.trim()
+    // Remove markdown code block fences if present
+    const cleanedJsonString =
+      rawAiResponse.startsWith("```json") && rawAiResponse.endsWith("```")
+        ? rawAiResponse.substring(7, rawAiResponse.length - 3).trim()
+        : rawAiResponse
+
+    const parsedResult = JSON.parse(cleanedJsonString)
     const metaDescription = parsedResult.metaDescription || ""
     const keywords = Array.isArray(parsedResult.keywords) ? parsedResult.keywords : []
 

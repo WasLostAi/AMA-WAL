@@ -3,8 +3,8 @@
 import { supabaseAdmin } from "@/lib/supabase"
 import { revalidatePath } from "next/cache"
 import { generateText } from "ai"
-import { openai as textGenOpenai } from "@ai-sdk/openai"
-import { createOpenAI } from "@ai-sdk/openai"
+// Import the 'openai' client directly for both text generation and embeddings
+import { openai } from "@ai-sdk/openai"
 
 interface AgentProfileData {
   personal: any
@@ -39,8 +39,6 @@ interface GeneratedPost {
   metadata?: Record<string, any>
 }
 
-// Removed the top-level openaiEmbeddings declaration
-
 // Helper to fetch agent profile data including config_data
 async function getAgentProfileWithConfig(): Promise<{ data: AgentProfileData | null; message?: string }> {
   try {
@@ -73,11 +71,9 @@ async function getRagContext(query: string): Promise<string> {
     return ""
   }
 
-  // Initialize openaiEmbeddings client here, inside the function
-  const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-
+  // Use the imported 'openai' client directly for embeddings
   try {
-    const { embedding } = await openaiEmbeddings.embeddings.create({
+    const { embedding } = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: query,
     })
@@ -160,7 +156,7 @@ export async function generateAndSyndicateContent(
     }
 
     const { text: aiResponseText } = await generateText({
-      model: textGenOpenai("gpt-4o"),
+      model: openai("gpt-4o"),
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0.7,

@@ -11,7 +11,7 @@ export interface BlogPost {
   content: string
   status: "draft" | "published" | "archived"
   meta_description: string | null
-  keywords: string[] | null // Stored as JSONB, retrieved as array or string
+  keywords: string[] | null // Stored as TEXT[], retrieved as string[]
   featured_image_url: string | null
   generated_at: Date // Expecting Date object from DB
   updated_at: Date | null // Expecting Date object or null from DB
@@ -50,7 +50,12 @@ async function handleFeaturedImageUpload(
 ): Promise<string | null> {
   if (clearExisting && existingImageUrl) {
     try {
-      await del(existingImageUrl, { token: process.env.BLOB_READ_WRITE_TOKEN })
+      // Ensure the URL is a full Blob URL before deleting
+      const blobPath = existingImageUrl.startsWith("https://blob.vercel-storage.com/")
+        ? existingImageUrl.substring("https://blob.vercel-storage.com".length)
+        : existingImageUrl // Fallback if it's just a path
+
+      await del(blobPath, { token: process.env.BLOB_READ_WRITE_TOKEN })
       console.log(`Deleted old blob: ${existingImageUrl}`)
     } catch (error) {
       console.error("Error deleting old blob:", error)
@@ -78,9 +83,9 @@ function processBlogRows(rows: any[]): BlogPost[] {
     ...row,
     generated_at: new Date(row.generated_at),
     updated_at: row.updated_at ? new Date(row.updated_at) : null,
-    // Ensure keywords are an array or null. @vercel/postgres usually handles JSONB to array.
-    // If it comes as a string, parse it.
-    keywords: row.keywords ? (Array.isArray(row.keywords) ? row.keywords : JSON.parse(row.keywords)) : null,
+    // For TEXT[] columns, @vercel/postgres should return a JS array directly.
+    // No JSON.parse needed here if the DB column is TEXT[].
+    keywords: row.keywords || null,
   }))
 }
 
@@ -193,9 +198,10 @@ export async function createBlogPost(
       featured_image_url = await handleFeaturedImageUpload(featuredImageFile, null, false)
     }
 
+    // Correctly pass the keywords array to the TEXT[] column
     await sql`
       INSERT INTO blog_posts (title, slug, content, status, meta_description, keywords, featured_image_url, generated_at)
-      VALUES (${title}, ${slug}, ${content}, ${status}, ${meta_description}, ${keywords ? JSON.stringify(keywords) : null}::jsonb, ${featured_image_url}, NOW());
+      VALUES (${title}, ${slug}, ${content}, ${status}, ${meta_description}, ${keywords}, ${featured_image_url}, NOW());
     `
 
     revalidatePath("/blog")
@@ -239,6 +245,7 @@ export async function updateBlogPost(
       clearFeaturedImage,
     )
 
+    // Correctly pass the keywords array to the TEXT[] column
     await sql`
       UPDATE blog_posts
       SET
@@ -247,7 +254,7 @@ export async function updateBlogPost(
         content = ${content},
         status = ${status},
         meta_description = ${meta_description},
-        keywords = ${keywords ? JSON.stringify(keywords) : null}::jsonb,
+        keywords = ${keywords},
         featured_image_url = ${new_featured_image_url},
         updated_at = NOW()
       WHERE id = ${id};
@@ -280,7 +287,12 @@ export async function deleteBlogPost(id: string): Promise<{ success: boolean; me
     }>`SELECT featured_image_url FROM blog_posts WHERE id = ${id};`
     if (rows.length > 0 && rows[0].featured_image_url) {
       try {
-        await del(rows[0].featured_image_url, { token: process.env.BLOB_READ_WRITE_TOKEN })
+        // Ensure the URL is a full Blob URL before deleting
+        const blobPath = rows[0].featured_image_url.startsWith("https://blob.vercel-storage.com/")
+          ? rows[0].featured_image_url.substring("https://blob.vercel-storage.com".length)
+          : rows[0].featured_image_url // Fallback if it's just a path
+
+        await del(blobPath, { token: process.env.BLOB_READ_WRITE_TOKEN })
         console.log(`Deleted associated blob: ${rows[0].featured_image_url}`)
       } catch (blobError) {
         console.error("Error deleting associated blob image:", blobError)
