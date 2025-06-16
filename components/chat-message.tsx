@@ -21,7 +21,7 @@ export function ChatMessage({ message, aiAvatarSrc }: ChatMessageProps) {
       )}
     >
       <Avatar className={cn("h-8 w-8", isUser ? "bg-muted" : "")}>
-        <AvatarFallback>{isUser ? "U" : "AI"}</AvatarFallback>
+        <AvatarFallback>{isUser ? "U" : ""}</AvatarFallback>
         {!isUser && <AiAvatar src={aiAvatarSrc} />} {/* Use AiAvatar component with src prop */}
       </Avatar>
       <div className="flex-1">
