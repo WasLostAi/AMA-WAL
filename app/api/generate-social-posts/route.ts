@@ -73,25 +73,26 @@ export async function GET(request: Request) {
     const keywordsFocus = contentGuidelines.keywords_focus?.join(", ") || "AI, Web3, Decentralized AI"
     const audience = contentGuidelines.audience || "tech enthusiasts, developers"
 
-    // --- Fetch current project updates from Vercel Blob ---
+    // --- Fetch current project updates from local public directory ---
     let currentProjectUpdates = ""
     try {
-      const blobResponse = await fetch(`https://blob.vercel-storage.com/social-posts-source.md`, {
+      // Fetch from the local public directory
+      const response = await fetch(`/social-posts-source.md`, {
         next: { revalidate: 86400 },
       })
 
-      if (blobResponse.ok) {
-        currentProjectUpdates = await blobResponse.text()
-        console.log("Fetched current project updates from Blob successfully.")
+      if (response.ok) {
+        currentProjectUpdates = await response.text()
+        console.log("Fetched current project updates from public directory successfully.")
       } else {
         console.warn(
-          "Could not fetch current project updates from Blob. Using default context. Status:",
-          blobResponse.status,
+          "Could not fetch current project updates from public directory. Using default context. Status:",
+          response.status,
         )
         currentProjectUpdates = "No specific recent project updates available. Generate based on general profile."
       }
-    } catch (blobError) {
-      console.error("Error fetching current project updates from Vercel Blob:", blobError)
+    } catch (localFetchError) {
+      console.error("Error fetching current project updates from public directory:", localFetchError)
       currentProjectUpdates = "Error fetching recent project updates. Generate based on general profile."
     }
 
