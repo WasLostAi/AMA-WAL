@@ -4,8 +4,6 @@ import { createOpenAI, openai as textGenOpenai } from "@ai-sdk/openai"
 import { generateText } from "ai"
 import { supabaseAdmin } from "@/lib/supabase"
 
-const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-
 export async function POST(request: NextRequest) {
   try {
     const { message, history } = await request.json()
@@ -14,6 +12,9 @@ export async function POST(request: NextRequest) {
       console.error("OPENAI_API_KEY environment variable is not set.")
       return NextResponse.json({ error: "Server configuration error: OpenAI API key is missing." }, { status: 500 })
     }
+
+    // Initialize openaiEmbeddings here, after the API key check
+    const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
     // --- RAG: Retrieve relevant documents from Supabase ---
     let retrievedContext = ""

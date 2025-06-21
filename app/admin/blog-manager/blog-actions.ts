@@ -25,7 +25,7 @@ function formDataToBlogPostData(
   const slug = formData.get("slug") as string
   const content = formData.get("content") as string
   const status = formData.get("status") as BlogPost["status"]
-  const meta_description = (formData.get("meta_description") as string) || null
+  const meta_description = (formData.get("metaDescription") as string) || null // Corrected name
   const keywordsString = (formData.get("keywords") as string) || ""
   const keywords = keywordsString
     .split(",")
@@ -104,7 +104,8 @@ export async function getBlogPosts(): Promise<{ data: BlogPost[] | null; message
       "Failed to fetch blog posts. Please check your database connection and ensure the 'blog_posts' table exists and is correctly migrated."
 
     if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
-      errorMessage = `Failed to fetch blog posts: The database response was not valid JSON. This specific error often indicates an issue with your POSTGRES_URL, database connectivity, or that the database server is returning a non-JSON error (e.g., an HTML error page). Original error: ${error.message}`
+      errorMessage =
+        "Failed to fetch blog posts: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
     } else if (error.message && error.message.includes('relation "blog_posts" does not exist')) {
       errorMessage =
         "Failed to fetch blog posts: The 'blog_posts' table does not exist. Please run the database migration scripts."
@@ -136,7 +137,8 @@ export async function getPublishedBlogPosts(): Promise<{ data: BlogPost[] | null
       "Failed to fetch published blog posts. Please check your database connection and ensure the 'blog_posts' table exists and is correctly migrated."
 
     if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
-      errorMessage = `Failed to fetch published blog posts: The database response was not valid JSON. This specific error often indicates an issue with your POSTGRES_URL, database connectivity, or that the database server is returning a non-JSON error (e.g., an HTML error page). Original error: ${error.message}`
+      errorMessage =
+        "Failed to fetch published blog posts: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
     } else if (error.message && error.message.includes('relation "blog_posts" does not exist')) {
       errorMessage =
         "Failed to fetch published blog posts: The 'blog_posts' table does not exist. Please run the database migration scripts."
@@ -169,9 +171,37 @@ export async function getBlogPostBySlug(slug: string): Promise<{ data: BlogPost 
     console.error(`Error fetching blog post with slug ${slug}:`, error)
     let errorMessage = "Failed to fetch blog post."
     if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
-      errorMessage = `Failed to fetch blog post: The database response was not valid JSON. This specific error often indicates an issue with your POSTGRES_URL, database connectivity, or that the database server is returning a non-JSON error (e.g., an HTML error page). Original error: ${error.message}`
+      errorMessage =
+        "Failed to fetch blog post: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
     } else if (error.message) {
       errorMessage = `Failed to fetch blog post: ${error.message}`
+    }
+    return { data: null, message: errorMessage }
+  }
+}
+
+// NEW: Function to get a blog post by ID
+export async function getBlogPostById(id: string): Promise<{ data: BlogPost | null; message?: string }> {
+  try {
+    if (!process.env.POSTGRES_URL) {
+      console.error("POSTGRES_URL environment variable is not set.")
+      return { data: null, message: "Database connection error: POSTGRES_URL is not configured." }
+    }
+    const { rows } = await sql<BlogPost>`SELECT * FROM blog_posts WHERE id = ${id};`
+
+    if (rows.length === 0) {
+      return { data: null, message: "Blog post not found." }
+    }
+
+    return { data: processBlogRows(rows)[0], message: "Blog post fetched successfully." }
+  } catch (error: any) {
+    console.error(`Error fetching blog post with ID ${id}:`, error)
+    let errorMessage = "Failed to fetch blog post by ID."
+    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
+      errorMessage =
+        "Failed to fetch blog post by ID: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
+    } else if (error.message) {
+      errorMessage = `Failed to fetch blog post by ID: ${error.message}`
     }
     return { data: null, message: errorMessage }
   }
@@ -206,6 +236,7 @@ export async function createBlogPost(
     VALUES (${title}, ${slug}, ${content}, ${status}, ${meta_description}, ${keywords}, ${featured_image_url}, NOW());
   `
 
+    revalidatePath("/admin/blog-manager") // Revalidate admin page
     revalidatePath("/blog")
     revalidatePath("/sitemap.xml")
     revalidatePath("/rss.xml")
@@ -213,7 +244,16 @@ export async function createBlogPost(
   } catch (error: any) {
     console.error("Error creating blog post:", error)
     let errorMessage = "Failed to create blog post."
-    if (error.message) {
+    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
+      errorMessage =
+        "Failed to create blog post: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
+    } else if (error.message && error.message.includes('relation "blog_posts" does not exist')) {
+      errorMessage =
+        "Failed to create blog post: The 'blog_posts' table does not exist. Please run the database migration scripts."
+    } else if (error.message && error.message.includes("Invalid response from database")) {
+      errorMessage =
+        "Failed to create blog post: Invalid response from database. This might indicate a connection issue or a malformed query."
+    } else if (error.message) {
       errorMessage = `Failed to create blog post: ${error.message}`
     }
     return { success: false, message: errorMessage }
@@ -262,6 +302,7 @@ export async function updateBlogPost(
     WHERE id = ${id};
   `
 
+    revalidatePath("/admin/blog-manager") // Revalidate admin page
     revalidatePath("/blog")
     revalidatePath(`/blog/${slug}`)
     revalidatePath("/sitemap.xml")
@@ -270,7 +311,16 @@ export async function updateBlogPost(
   } catch (error: any) {
     console.error("Error updating blog post:", error)
     let errorMessage = "Failed to update blog post."
-    if (error.message) {
+    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
+      errorMessage =
+        "Failed to update blog post: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
+    } else if (error.message && error.message.includes('relation "blog_posts" does not exist')) {
+      errorMessage =
+        "Failed to update blog post: The 'blog_posts' table does not exist. Please run the database migration scripts."
+    } else if (error.message && error.message.includes("Invalid response from database")) {
+      errorMessage =
+        "Failed to update blog post: Invalid response from database. This might indicate a connection issue or a malformed query."
+    } else if (error.message) {
       errorMessage = `Failed to update blog post: ${error.message}`
     }
     return { success: false, message: errorMessage }
@@ -302,6 +352,7 @@ export async function deleteBlogPost(id: string): Promise<{ success: boolean; me
     }
 
     await sql`DELETE FROM blog_posts WHERE id = ${id};`
+    revalidatePath("/admin/blog-manager") // Revalidate admin page
     revalidatePath("/blog")
     revalidatePath("/sitemap.xml")
     revalidatePath("/rss.xml")

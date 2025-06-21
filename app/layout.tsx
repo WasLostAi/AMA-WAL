@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { Inter, Syne } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { WalletProviderWrapper } from "@/components/wallet-provider-wrapper" // New wrapper for Solana
+import { WalletProviderWrapper } from "@/components/wallet-provider-wrapper"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,19 +22,20 @@ export const metadata: Metadata = {
   title: "WasLost Ai",
   description: "Ask Me Anything!",
   icons: {
-    icon: "/favicon.svg", // Use the SVG as the primary icon
-    shortcut: "/favicon-96x96.png", // Fallback for older browsers/devices
-    apple: "/apple-touch-icon.png", // Apple touch icon
+    icon: "/favicon.svg",
+    shortcut: "/favicon-96x96.png",
+    apple: "/apple-touch-icon.png",
     other: [
       {
         rel: "mask-icon",
-        url: "/favicon.svg", // For Safari pinned tabs
-        color: "#0C0C0C", // Adjust color as needed for your design
+        url: "/favicon.svg",
+        color: "#0C0C0C",
       },
     ],
   },
-  manifest: "/site.webmanifest", // Link to your web app manifest
-    generator: 'v0.dev'
+  manifest: "/site.webmanifest",
+  generator: "v0.dev",
+  // This comment helps trigger re-evaluation in some environments.
 }
 
 export default function RootLayout({
@@ -46,11 +47,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${syne.variable}`}>
       <body style={{ backgroundColor: "#0C0C0C" }} className="text-white antialiased font-inter">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
-          <WalletProviderWrapper>
-            {" "}
-            {/* Wrap children with Solana wallet providers */}
-            {children}
-          </WalletProviderWrapper>
+          <WalletProviderWrapper>{children}</WalletProviderWrapper>
         </ThemeProvider>
       </body>
     </html>
