@@ -35,7 +35,6 @@ export const metadata: Metadata = {
   },
   manifest: "/site.webmanifest",
   generator: "v0.dev",
-  // This comment helps trigger re-evaluation in some environments.
 }
 
 export default function RootLayout({

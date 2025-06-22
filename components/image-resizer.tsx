@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { resizeImage } from "@/lib/image-processing" // Import the utility
 
-export function ImageResizerDemo() {
+export function ImageResizer() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [resizedImageUrl, setResizedImageUrl] = useState<string | null>(null)
   const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null)

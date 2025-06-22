@@ -1,5 +1,6 @@
 import { GradientHeading } from "@/components/gradient-heading"
 import { ProjectCard } from "@/components/project-card"
+import { Card } from "@/components/ui/card"
 
 export default function ProjectsPage() {
   const projects = [
@@ -34,7 +35,7 @@ export default function ProjectsPage() {
       <div className="container max-w-4xl mx-auto px-4 py-12">
         <GradientHeading text="Project Repository" className="mb-12" />
 
-        <div className="jupiter-panel p-6 rounded-xl shadow-inner-neumorphic">
+        <Card className="jupiter-panel p-6 rounded-xl">
           <h2 className="subheading-large text-center mb-8 text-primary">Current Projects</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {projects.map((project, index) => (
@@ -47,7 +48,7 @@ export default function ProjectsPage() {
               />
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     </main>
   )

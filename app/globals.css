@@ -1,3 +1,8 @@
+/*
+  This file contains the global CSS styles for the application.
+  It includes Tailwind CSS directives and custom styles for neumorphic effects.
+*/
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -35,25 +40,36 @@
 
     --radius: 0.75rem; /* Slightly larger radius for softer look */
 
+    /* Custom Neumorphic Colors */
+    --neumorphic-base: #0c0c0c; /* Base background for elements */
+    --neumorphic-light: #1a1a1a; /* Lighter shade for highlights */
+    --neumorphic-dark: #000000; /* Darker shade for shadows */
+    --neumorphic-highlight: hsl(0 0% 20%); /* Even lighter shade for highlights on raised elements */
+
+    /* Custom Light Colors for Indicators */
+    --light-green: hsl(84 100% 59%); /* Matches existing primary green */
+    --light-blue: hsl(200 100% 70%); /* Light blue for blog */
+    --darker-green: hsl(84 100% 30%); /* Darker green for future section */
+
     /* Solana Wallet Adapter Customizations */
-    --wallet-adapter-button-background-color: #0c0c0c; /* neumorphic-base */
-    --wallet-adapter-button-color: hsl(84 100% 59%); /* secondary color */
-    --wallet-adapter-button-hover-background-color: #1a1a1a; /* neumorphic-light */
-    --wallet-adapter-button-active-background-color: #000000; /* neumorphic-dark */
-    --wallet-adapter-button-border-radius: 0.75rem; /* --radius */
-    --wallet-adapter-button-box-shadow: 3px 3px 6px #000000, -3px -3px 6px #1a1a1a; /* neumorphic-base shadow */
+    --wallet-adapter-button-background-color: var(--neumorphic-base);
+    --wallet-adapter-button-color: var(--secondary);
+    --wallet-adapter-button-hover-background-color: var(--neumorphic-light);
+    --wallet-adapter-button-active-background-color: var(--neumorphic-dark);
+    --wallet-adapter-button-border-radius: var(--radius);
+    --wallet-adapter-button-box-shadow: 3px 3px 6px var(--neumorphic-dark), -3px -3px 6px var(--neumorphic-light);
 
-    --wallet-adapter-modal-background-color: #0c0c0c; /* neumorphic-base */
-    --wallet-adapter-modal-color: hsl(195 100% 95%); /* foreground color */
-    --wallet-adapter-modal-border-radius: 0.75rem; /* --radius */
+    --wallet-adapter-modal-background-color: var(--neumorphic-base);
+    --wallet-adapter-modal-color: var(--foreground);
+    --wallet-adapter-modal-border-radius: var(--radius);
     --wallet-adapter-modal-box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 8px 8px 16px rgba(0, 0, 0, 0.6), -8px -8px
-      16px rgba(26, 26, 26, 0.6); /* Enhanced neumorphic shadow */
-    --wallet-adapter-modal-overlay-background-color: rgba(0, 0, 0, 0.7); /* Darker overlay */
+      16px rgba(26, 26, 26, 0.6);
+    --wallet-adapter-modal-overlay-background-color: rgba(0, 0, 0, 0.7);
 
-    --wallet-adapter-modal-list-item-background-color: #0c0c0c; /* neumorphic-base */
-    --wallet-adapter-modal-list-item-hover-background-color: #1a1a1a; /* neumorphic-light */
-    --wallet-adapter-modal-list-item-color: hsl(195 100% 95%); /* foreground color */
-    --wallet-adapter-modal-list-item-border-radius: 0.5rem; /* Slightly smaller for list items */
+    --wallet-adapter-modal-list-item-background-color: var(--neumorphic-base);
+    --wallet-adapter-modal-list-item-hover-background-color: var(--neumorphic-light);
+    --wallet-adapter-modal-list-item-color: var(--foreground);
+    --wallet-adapter-modal-list-item-border-radius: 0.5rem;
   }
 }
 
@@ -62,8 +78,8 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-inter;
-    background-color: #0c0c0c; /* Jupiter space black */
+    @apply bg-background text-foreground;
+    background-color: var(--neumorphic-base); /* Ensure body uses the base neumorphic color */
   }
 
   /* Typography System */
@@ -105,18 +121,18 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: theme("colors.neumorphic.dark"); /* Color of the track */
+    background: var(--neumorphic-dark); /* Color of the track */
     border-radius: 10px;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: theme("colors.neumorphic.light"); /* Color of the scroll thumb */
+    background: var(--neumorphic-light); /* Color of the scroll thumb */
     border-radius: 10px;
-    border: 2px solid theme("colors.neumorphic.dark"); /* Creates a subtle border around the thumb */
+    border: 2px solid var(--neumorphic-dark); /* Creates a subtle border around the thumb */
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: theme("colors.muted.foreground"); /* Color when hovering over the thumb */
+    background: var(--muted-foreground); /* Color when hovering over the thumb */
   }
 
   /* Ensure no default blue outlines or link colors */
@@ -134,34 +150,38 @@
 @layer components {
   /* Neumorphic UI Components */
   .neumorphic-base {
-    background-color: theme("colors.neumorphic.base");
+    background-color: var(--neumorphic-base);
     border-radius: theme("borderRadius.lg");
-    box-shadow: 3px 3px 6px theme("colors.neumorphic.dark"), -3px -3px 6px theme("colors.neumorphic.light"); /* Reduced spread */
+    box-shadow: 3px 3px 6px var(--neumorphic-dark), -3px -3px 6px var(--neumorphic-light);
     transition: all 0.3s ease;
   }
 
   .neumorphic-inset {
-    background-color: theme("colors.neumorphic.base");
+    background-color: var(--neumorphic-base);
     border-radius: theme("borderRadius.lg");
-    box-shadow: inset 1.5px 1.5px 3px theme("colors.neumorphic.dark"), inset -1.5px -1.5px 3px
-      theme("colors.neumorphic.light"); /* Reduced spread */
+    box-shadow: inset 1.5px 1.5px 3px var(--neumorphic-dark), inset -1.5px -1.5px 3px var(--neumorphic-light);
     transition: all 0.3s ease;
   }
 
+  /* Neumorphic styles for dark theme */
   .jupiter-card {
-    @apply neumorphic-base;
-    background-color: rgba(12, 12, 12, 0.6); /* Slightly more opaque for neumorphic base */
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.05); /* Very subtle border */
+    border-radius: 1rem;
+    background: var(--neumorphic-light); /* Base for raised card */
+    box-shadow: 6px 6px 12px var(--neumorphic-dark), -6px -6px 12px var(--neumorphic-highlight); /* Use new highlight */
+    transition: all 0.2s ease-in-out;
+  }
+
+  .jupiter-card:hover {
+    box-shadow: 3px 3px 6px var(--neumorphic-dark), -3px -3px 6px var(--neumorphic-highlight);
+    transform: translateY(-2px);
   }
 
   .jupiter-panel {
-    @apply neumorphic-base;
-    background-color: rgba(12, 12, 12, 0.7); /* Slightly more opaque for neumorphic base */
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.05); /* Very subtle border */
+    border-radius: 1.5rem;
+    background: var(--neumorphic-base); /* Base color for recessed effect */
+    border: 1px solid rgba(255, 255, 255, 0.03); /* More subtle border */
+    box-shadow: inset 5px 5px 12px var(--neumorphic-dark), /* Darker inner shadow, slightly more blur */ inset -5px -5px
+      12px var(--neumorphic-light); /* Lighter inner highlight, slightly more blur */
   }
 
   .jupiter-outer-panel {
@@ -173,8 +193,14 @@
   }
 
   .jupiter-button {
-    @apply font-syne font-bold rounded-lg;
-    transition: all 0.3s ease;
+    background-color: var(--neumorphic-base);
+    border-radius: 10px;
+    box-shadow: 3px 3px 6px var(--neumorphic-dark), -3px -3px 6px var(--neumorphic-light);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .jupiter-button:hover {
+    box-shadow: inset 2px 2px 4px var(--neumorphic-dark), inset -2px -2px 4px var(--neumorphic-light);
   }
 
   .jupiter-button-gradient {
@@ -194,15 +220,13 @@
   .jupiter-button-dark {
     @apply jupiter-button text-lg font-bold uppercase;
     color: #afcd4f !important; /* Green text for static state */
-    background-color: theme("colors.neumorphic.base") !important; /* Ensure base background is applied */
-    box-shadow: 3px 3px 6px theme("colors.neumorphic.dark"), -3px -3px 6px theme("colors.neumorphic.light");
+    background-color: var(--neumorphic-base) !important; /* Ensure base background is applied */
+    box-shadow: 3px 3px 6px var(--neumorphic-dark), -3px -3px 6px var(--neumorphic-light);
     border: none; /* Neumorphic buttons typically don't have hard borders */
   }
   .jupiter-button-dark:hover {
     color: black !important; /* Black text on hover */
-    /* Removed background-color change on hover to keep the base color */
-    box-shadow: inset 1.5px 1.5px 3px theme("colors.neumorphic.dark"), inset -1.5px -1.5px 3px
-      theme("colors.neumorphic.light"); /* Depressed effect on hover */
+    box-shadow: inset 1.5px 1.5px 3px var(--neumorphic-dark), inset -1.5px -1.5px 3px var(--neumorphic-light); /* Depressed effect on hover */
     transform: translateY(1px); /* Depressed effect on hover */
   }
   .jupiter-button-dark:active {
@@ -229,8 +253,20 @@
 
   /* Custom inner shadow for debossed effect on inputs */
   .shadow-inner-neumorphic {
-    box-shadow: inset 1.5px 1.5px 4px theme("colors.neumorphic.dark"), inset -1.5px -1.5px 4px
-      theme("colors.neumorphic.light");
+    box-shadow: inset 1.5px 1.5px 4px var(--neumorphic-dark), inset -1.5px -1.5px 4px var(--neumorphic-light);
+  }
+
+  .jupiter-input {
+    background-color: var(--neumorphic-base);
+    border-radius: 10px;
+    box-shadow: inset 2px 2px 5px var(--neumorphic-dark), inset -2px -2px 5px var(--neumorphic-light);
+    border: none;
+    color: #ffffff;
+  }
+
+  .jupiter-input:focus {
+    outline: none;
+    box-shadow: inset 2px 2px 5px var(--neumorphic-dark), inset -2px -2px 5px var(--neumorphic-light), 0 0 0 2px #afcd4f; /* Accent color for focus ring */
   }
 }
 
@@ -326,4 +362,18 @@
 
 .matrix-loading {
   animation: matrixLoading 2s infinite;
+}
+
+.font-syne {
+  font-family: "Syne", sans-serif; /* Assuming Syne font is loaded or fallback */
+}
+
+.text-caption {
+  font-size: 0.875rem; /* Smaller text for captions */
+  color: var(--muted-foreground);
+}
+
+/* Custom primary text color for headings/titles */
+.text-primary {
+  color: #afcd4f; /* A distinct green color */
 }

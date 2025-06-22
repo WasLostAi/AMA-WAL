@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge" // Correctly imported Badge
-import { cn } from "@/lib/utils" // Ensure cn is imported
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 interface ProjectCardProps {
   title: string
