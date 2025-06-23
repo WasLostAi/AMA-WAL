@@ -2,12 +2,16 @@
 
 import type React from "react"
 import { useState, useRef } from "react"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { resizeImage } from "@/lib/image-processing" // Import the utility
+import { resizeImage } from "@/lib/image-processing" // Corrected import path
 
-export function ImageResizer() {
+interface ImageResizerProps {
+  onFileChange: (file: File | null) => void
+}
+
+function ImageResizer({ onFileChange }: ImageResizerProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [resizedImageUrl, setResizedImageUrl] = useState<string | null>(null)
   const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null)
@@ -22,11 +26,13 @@ export function ImageResizer() {
       setOriginalImageUrl(URL.createObjectURL(file))
       setResizedImageUrl(null) // Clear previous resized image
       setError(null)
+      onFileChange(file) // Pass the selected file to the parent
     } else {
       setSelectedFile(null)
       setOriginalImageUrl(null)
       setResizedImageUrl(null)
       setError("Please select an image file (PNG, JPEG, GIF).")
+      onFileChange(null) // Clear file in parent
     }
   }
 
@@ -43,6 +49,8 @@ export function ImageResizer() {
       const resizedBlob = await resizeImage(selectedFile, { maxWidth: 800, maxHeight: 600, quality: 0.8 })
       if (resizedBlob) {
         setResizedImageUrl(URL.createObjectURL(resizedBlob))
+        // Optionally, pass the resized blob back to the parent if needed
+        // onFileChange(new File([resizedBlob], selectedFile.name, { type: resizedBlob.type }));
       } else {
         setError("Failed to resize image: Resulting blob was null.")
       }
@@ -121,3 +129,5 @@ export function ImageResizer() {
     </div>
   )
 }
+
+export { ImageResizer }
