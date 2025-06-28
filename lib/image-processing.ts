@@ -17,7 +17,7 @@ interface ResizeImageOptions {
  * @param options Resize options including maxWidth, maxHeight, and quality.
  * @returns A Promise that resolves with the resized image as a Blob, or null if an error occurs.
  */
-export async function resizeImage(file: File, options: ResizeImageOptions = {}): Promise<Blob | null> {
+function resizeImage(file: File, options: ResizeImageOptions = {}): Promise<Blob | null> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.crossOrigin = "anonymous" // Important for handling images from different origins
@@ -63,3 +63,5 @@ export async function resizeImage(file: File, options: ResizeImageOptions = {}):
     img.src = URL.createObjectURL(file)
   })
 }
+
+export { resizeImage }
