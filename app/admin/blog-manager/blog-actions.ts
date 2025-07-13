@@ -1,368 +1,217 @@
 "use server"
 
-import { sql } from "@vercel/postgres"
 import { revalidatePath } from "next/cache"
-import { put, del } from "@vercel/blob"
+import { v4 as uuidv4 } from "uuid"
 
-export interface BlogPost {
+export type BlogPost = {
   id: string
-  slug: string
   title: string
+  slug: string
   content: string
   status: "draft" | "published" | "archived"
-  meta_description: string | null
-  keywords: string[] | null // Stored as TEXT[], retrieved as string[]
-  featured_image_url: string | null
-  generated_at: Date // Expecting Date object from DB
-  updated_at: Date | null // Expecting Date object or null from DB
+  generated_at: string
+  updated_at?: string
+  meta_description?: string
+  keywords?: string[]
+  featured_image_url?: string
 }
 
-// Helper to convert FormData to BlogPost object (excluding ID, timestamps, and image URL)
-function formDataToBlogPostData(
-  formData: FormData,
-): Omit<BlogPost, "id" | "generated_at" | "updated_at" | "featured_image_url"> {
-  const title = formData.get("title") as string
-  const slug = formData.get("slug") as string
-  const content = formData.get("content") as string
-  const status = formData.get("status") as BlogPost["status"]
-  const meta_description = (formData.get("metaDescription") as string) || null // Corrected name
-  const keywordsString = (formData.get("keywords") as string) || ""
-  const keywords = keywordsString
-    .split(",")
-    .map((k) => k.trim())
-    .filter(Boolean)
+// Mock database for blog posts
+let blogPosts: BlogPost[] = [
+  {
+    id: "1",
+    title: "The Future of AI in Web3",
+    slug: "future-of-ai-web3",
+    content: "This is a **mock** blog post about the exciting future of AI in Web3.",
+    status: "published",
+    generated_at: new Date().toISOString(),
+    meta_description: "Explore the convergence of AI and Web3 technologies.",
+    keywords: ["AI", "Web3", "Blockchain"],
+    featured_image_url: "/placeholder.svg?height=400&width=600",
+  },
+  {
+    id: "2",
+    title: "Getting Started with Solana Development",
+    slug: "solana-development-guide",
+    content: "A comprehensive guide to starting your journey in Solana development.",
+    status: "draft",
+    generated_at: new Date().toISOString(),
+    meta_description: "Begin your Solana development journey with this guide.",
+    keywords: ["Solana", "Development", "Blockchain"],
+    featured_image_url: "/placeholder.svg?height=400&width=600",
+  },
+]
 
-  return {
-    title,
-    slug,
-    content,
-    status,
-    meta_description,
-    keywords: keywords.length > 0 ? keywords : null,
-  }
-}
-
-// Function to handle image upload to Vercel Blob
-async function handleFeaturedImageUpload(
-  imageFile: File | null,
-  existingImageUrl: string | null,
-  clearExisting: boolean,
-): Promise<string | null> {
-  if (clearExisting && existingImageUrl) {
-    try {
-      // Ensure the URL is a full Blob URL before deleting
-      const blobPath = existingImageUrl.startsWith("https://blob.vercel-storage.com/")
-        ? existingImageUrl.substring("https://blob.vercel-storage.com".length)
-        : existingImageUrl // Fallback if it's just a path
-
-      await del(blobPath, { token: process.env.BLOB_READ_WRITE_TOKEN })
-      console.log(`Deleted old blob: ${existingImageUrl}`)
-    } catch (error) {
-      console.error("Error deleting old blob:", error)
-    }
-    return null
-  }
-
-  if (imageFile && imageFile.size > 0) {
-    const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, "_")}`
-    try {
-      const blob = await put(filename, imageFile, { access: "public", token: process.env.BLOB_READ_WRITE_TOKEN })
-      console.log(`Uploaded new blob: ${blob.url}`)
-      return blob.url
-    } catch (error) {
-      console.error("Error uploading featured image to Vercel Blob:", error)
-      throw new Error("Failed to upload featured image.")
-    }
-  }
-  return existingImageUrl // Keep existing image if no new file and not explicitly cleared
-}
-
-// Helper to process rows fetched from SQL to match BlogPost interface types
-function processBlogRows(rows: any[]): BlogPost[] {
-  return rows.map((row) => ({
-    ...row,
-    generated_at: new Date(row.generated_at),
-    updated_at: row.updated_at ? new Date(row.updated_at) : null,
-    // For TEXT[] columns, @vercel/postgres should return a JS array directly.
-    // No JSON.parse needed here if the DB column is TEXT[].
-    keywords: row.keywords || null,
-  }))
+// Helper to simulate image upload (replace with actual Blob/S3 upload in production)
+async function uploadImageToMockStorage(file: File): Promise<string> {
+  // In a real application, you would upload to Vercel Blob, S3, etc.
+  // For now, we'll just create a blob URL or use a placeholder.
+  return URL.createObjectURL(file) // This is client-side only, won't persist on server
+  // Or for a server-side mock:
+  // return `/placeholder.svg?height=400&width=600&query=${encodeURIComponent(file.name)}`;
 }
 
 export async function getBlogPosts(): Promise<{ data: BlogPost[] | null; message: string }> {
   try {
-    if (!process.env.POSTGRES_URL) {
-      console.error("POSTGRES_URL environment variable is not set.")
-      return { data: null, message: "Database connection error: POSTGRES_URL is not configured." }
-    }
-
-    const { rows } = await sql<BlogPost>`SELECT * FROM blog_posts ORDER BY generated_at DESC;`
-    return { data: processBlogRows(rows), message: "Blog posts fetched successfully." }
-  } catch (error: any) {
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    return { data: blogPosts, message: "Blog posts fetched successfully." }
+  } catch (error) {
     console.error("Error fetching blog posts:", error)
-    let errorMessage =
-      "Failed to fetch blog posts. Please check your database connection and ensure the 'blog_posts' table exists and is correctly migrated."
-
-    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
-      errorMessage =
-        "Failed to fetch blog posts: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
-    } else if (error.message && error.message.includes('relation "blog_posts" does not exist')) {
-      errorMessage =
-        "Failed to fetch blog posts: The 'blog_posts' table does not exist. Please run the database migration scripts."
-    } else if (error.message && error.message.includes("Invalid response from database")) {
-      errorMessage =
-        "Failed to fetch blog posts: Invalid response from database. This might indicate a connection issue or a malformed query."
-    } else if (error.message) {
-      errorMessage = `Failed to fetch blog posts: ${error.message}`
-    }
-
-    return { data: null, message: errorMessage }
+    return { data: null, message: "Failed to fetch blog posts." }
   }
 }
 
 export async function getPublishedBlogPosts(): Promise<{ data: BlogPost[] | null; message: string }> {
   try {
-    if (!process.env.POSTGRES_URL) {
-      console.error("POSTGRES_URL environment variable is not set.")
-      return { data: null, message: "Database connection error: POSTGRES_URL is not configured." }
-    }
-
-    const { rows } =
-      await sql<BlogPost>`SELECT * FROM blog_posts WHERE status = 'published' ORDER BY generated_at DESC;`
-
-    return { data: processBlogRows(rows), message: "Published blog posts fetched successfully." }
-  } catch (error: any) {
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const publishedPosts = blogPosts.filter((post) => post.status === "published")
+    return { data: publishedPosts, message: "Published blog posts fetched successfully." }
+  } catch (error) {
     console.error("Error fetching published blog posts:", error)
-    let errorMessage =
-      "Failed to fetch published blog posts. Please check your database connection and ensure the 'blog_posts' table exists and is correctly migrated."
-
-    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
-      errorMessage =
-        "Failed to fetch published blog posts: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
-    } else if (error.message && error.message.includes('relation "blog_posts" does not exist')) {
-      errorMessage =
-        "Failed to fetch published blog posts: The 'blog_posts' table does not exist. Please run the database migration scripts."
-    } else if (error.message && error.message.includes("Invalid response from database")) {
-      errorMessage =
-        "Failed to fetch published blog posts: Invalid response from database. This might indicate a connection issue or a malformed query."
-    } else if (error.message) {
-      errorMessage = `Failed to fetch published blog posts: ${error.message}`
-    }
-
-    return { data: null, message: errorMessage }
+    return { data: null, message: "Failed to fetch published blog posts." }
   }
 }
 
 export async function getBlogPostBySlug(slug: string): Promise<{ data: BlogPost | null; message: string }> {
   try {
-    if (!process.env.POSTGRES_URL) {
-      console.error("POSTGRES_URL environment variable is not set.")
-      return { data: null, message: "Database connection error: POSTGRES_URL is not configured." }
-    }
-
-    const { rows } = await sql<BlogPost>`SELECT * FROM blog_posts WHERE slug = ${slug};`
-
-    if (rows.length === 0) {
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const post = blogPosts.find((p) => p.slug === slug)
+    if (post) {
+      return { data: post, message: "Blog post fetched successfully." }
+    } else {
       return { data: null, message: "Blog post not found." }
     }
-
-    return { data: processBlogRows(rows)[0], message: "Blog post fetched successfully." }
-  } catch (error: any) {
-    console.error(`Error fetching blog post with slug ${slug}:`, error)
-    let errorMessage = "Failed to fetch blog post."
-    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
-      errorMessage =
-        "Failed to fetch blog post: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
-    } else if (error.message) {
-      errorMessage = `Failed to fetch blog post: ${error.message}`
-    }
-    return { data: null, message: errorMessage }
-  }
-}
-
-// NEW: Function to get a blog post by ID
-export async function getBlogPostById(id: string): Promise<{ data: BlogPost | null; message?: string }> {
-  try {
-    if (!process.env.POSTGRES_URL) {
-      console.error("POSTGRES_URL environment variable is not set.")
-      return { data: null, message: "Database connection error: POSTGRES_URL is not configured." }
-    }
-    const { rows } = await sql<BlogPost>`SELECT * FROM blog_posts WHERE id = ${id};`
-
-    if (rows.length === 0) {
-      return { data: null, message: "Blog post not found." }
-    }
-
-    return { data: processBlogRows(rows)[0], message: "Blog post fetched successfully." }
-  } catch (error: any) {
-    console.error(`Error fetching blog post with ID ${id}:`, error)
-    let errorMessage = "Failed to fetch blog post by ID."
-    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
-      errorMessage =
-        "Failed to fetch blog post by ID: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
-    } else if (error.message) {
-      errorMessage = `Failed to fetch blog post by ID: ${error.message}`
-    }
-    return { data: null, message: errorMessage }
+  } catch (error) {
+    console.error("Error fetching blog post by slug:", error)
+    return { data: null, message: "Failed to fetch blog post." }
   }
 }
 
 export async function createBlogPost(
   prevState: any,
   formData: FormData,
-): Promise<{ success: boolean; message: string }> {
-  try {
-    const { title, slug, content, status, meta_description, keywords } = formDataToBlogPostData(formData)
-    const featuredImageFile = formData.get("featuredImage") as File | null
+): Promise<{ success: boolean; message: string; blogPost?: BlogPost }> {
+  const title = formData.get("title") as string
+  const slug = formData.get("slug") as string
+  const content = formData.get("content") as string
+  const status = formData.get("status") as BlogPost["status"]
+  const meta_description = formData.get("meta_description") as string
+  const keywords = formData.get("keywords") as string
+  const featuredImage = formData.get("featuredImage") as File | null
 
-    if (!process.env.POSTGRES_URL) {
-      return { success: false, message: "Database connection error: POSTGRES_URL is not configured." }
-    }
-
-    // Check for existing slug
-    const { rowCount: existingSlugCount } = await sql`SELECT 1 FROM blog_posts WHERE slug = ${slug};`
-    if (existingSlugCount > 0) {
-      return { success: false, message: "A blog post with this slug already exists. Please choose a different one." }
-    }
-
-    let featured_image_url: string | null = null
-    if (featuredImageFile && featuredImageFile.size > 0) {
-      featured_image_url = await handleFeaturedImageUpload(featuredImageFile, null, false)
-    }
-
-    // Correctly pass the keywords array to the TEXT[] column
-    await sql`
-    INSERT INTO blog_posts (title, slug, content, status, meta_description, keywords, featured_image_url, generated_at)
-    VALUES (${title}, ${slug}, ${content}, ${status}, ${meta_description}, ${keywords}, ${featured_image_url}, NOW());
-  `
-
-    revalidatePath("/admin/blog-manager") // Revalidate admin page
-    revalidatePath("/blog")
-    revalidatePath("/sitemap.xml")
-    revalidatePath("/rss.xml")
-    return { success: true, message: "Blog post created successfully!" }
-  } catch (error: any) {
-    console.error("Error creating blog post:", error)
-    let errorMessage = "Failed to create blog post."
-    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
-      errorMessage =
-        "Failed to create blog post: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
-    } else if (error.message && error.message.includes('relation "blog_posts" does not exist')) {
-      errorMessage =
-        "Failed to create blog post: The 'blog_posts' table does not exist. Please run the database migration scripts."
-    } else if (error.message && error.message.includes("Invalid response from database")) {
-      errorMessage =
-        "Failed to create blog post: Invalid response from database. This might indicate a connection issue or a malformed query."
-    } else if (error.message) {
-      errorMessage = `Failed to create blog post: ${error.message}`
-    }
-    return { success: false, message: errorMessage }
+  if (!title || !slug || !content || !status) {
+    return { success: false, message: "Missing required fields." }
   }
+
+  if (blogPosts.some((post) => post.slug === slug)) {
+    return { success: false, message: "A blog post with this slug already exists." }
+  }
+
+  let featured_image_url: string | undefined
+  if (featuredImage && featuredImage.size > 0) {
+    // In a real app, upload to Vercel Blob or similar
+    featured_image_url = await uploadImageToMockStorage(featuredImage)
+  }
+
+  const newPost: BlogPost = {
+    id: uuidv4(),
+    title,
+    slug,
+    content,
+    status,
+    generated_at: new Date().toISOString(),
+    meta_description: meta_description || undefined,
+    keywords: keywords ? keywords.split(",").map((k) => k.trim()) : undefined,
+    featured_image_url,
+  }
+
+  blogPosts.push(newPost)
+
+  // Revalidate paths for blog list and new post
+  revalidatePath("/blog")
+  revalidatePath(`/blog/${slug}`)
+  revalidatePath("/sitemap.xml") // Assuming sitemap includes blog posts
+  revalidatePath("/rss.xml") // Assuming RSS feed includes blog posts
+
+  return { success: true, message: "Blog post created successfully!", blogPost: newPost }
 }
 
 export async function updateBlogPost(
   prevState: any,
   formData: FormData,
-): Promise<{ success: boolean; message: string }> {
-  try {
-    const id = formData.get("id") as string
-    const { title, slug, content, status, meta_description, keywords } = formDataToBlogPostData(formData)
-    const featuredImageFile = formData.get("featuredImage") as File | null
-    const existingImageUrl = formData.get("existingImageUrl") as string | null
-    const clearFeaturedImage = formData.get("clearFeaturedImage") === "true"
+): Promise<{ success: boolean; message: string; blogPost?: BlogPost }> {
+  const id = formData.get("id") as string
+  const title = formData.get("title") as string
+  const slug = formData.get("slug") as string
+  const content = formData.get("content") as string
+  const status = formData.get("status") as BlogPost["status"]
+  const meta_description = formData.get("meta_description") as string
+  const keywords = formData.get("keywords") as string
+  const featuredImage = formData.get("featuredImage") as File | null
+  const existingImageUrl = formData.get("existingImageUrl") as string | null
+  const clearFeaturedImage = formData.get("clearFeaturedImage") === "true"
 
-    if (!process.env.POSTGRES_URL) {
-      return { success: false, message: "Database connection error: POSTGRES_URL is not configured." }
-    }
-
-    // Check for existing slug, excluding the current post being updated
-    const { rowCount: existingSlugCount } = await sql`SELECT 1 FROM blog_posts WHERE slug = ${slug} AND id != ${id};`
-    if (existingSlugCount > 0) {
-      return { success: false, message: "A blog post with this slug already exists. Please choose a different one." }
-    }
-
-    const new_featured_image_url: string | null = await handleFeaturedImageUpload(
-      featuredImageFile,
-      existingImageUrl,
-      clearFeaturedImage,
-    )
-
-    // Correctly pass the keywords array to the TEXT[] column
-    await sql`
-    UPDATE blog_posts
-    SET
-      title = ${title},
-      slug = ${slug},
-      content = ${content},
-      status = ${status},
-      meta_description = ${meta_description},
-      keywords = ${keywords},
-      featured_image_url = ${new_featured_image_url},
-      updated_at = NOW()
-    WHERE id = ${id};
-  `
-
-    revalidatePath("/admin/blog-manager") // Revalidate admin page
-    revalidatePath("/blog")
-    revalidatePath(`/blog/${slug}`)
-    revalidatePath("/sitemap.xml")
-    revalidatePath("/rss.xml")
-    return { success: true, message: "Blog post updated successfully!" }
-  } catch (error: any) {
-    console.error("Error updating blog post:", error)
-    let errorMessage = "Failed to update blog post."
-    if (error.message && error.message.includes("Unexpected token") && error.message.includes("is not valid JSON")) {
-      errorMessage =
-        "Failed to update blog post: The database returned an invalid response (not valid JSON). This usually means your POSTGRES_URL is incorrect or your database is unreachable. Please verify your POSTGRES_URL environment variable. Original error: ${error.message}"
-    } else if (error.message && error.message.includes('relation "blog_posts" does not exist')) {
-      errorMessage =
-        "Failed to update blog post: The 'blog_posts' table does not exist. Please run the database migration scripts."
-    } else if (error.message && error.message.includes("Invalid response from database")) {
-      errorMessage =
-        "Failed to update blog post: Invalid response from database. This might indicate a connection issue or a malformed query."
-    } else if (error.message) {
-      errorMessage = `Failed to update blog post: ${error.message}`
-    }
-    return { success: false, message: errorMessage }
+  if (!id || !title || !slug || !content || !status) {
+    return { success: false, message: "Missing required fields." }
   }
+
+  const index = blogPosts.findIndex((post) => post.id === id)
+  if (index === -1) {
+    return { success: false, message: "Blog post not found." }
+  }
+
+  // Check for slug conflict with other posts
+  if (blogPosts.some((post) => post.slug === slug && post.id !== id)) {
+    return { success: false, message: "A blog post with this slug already exists." }
+  }
+
+  let featured_image_url: string | undefined
+  if (clearFeaturedImage) {
+    featured_image_url = undefined
+  } else if (featuredImage && featuredImage.size > 0) {
+    featured_image_url = await uploadImageToMockStorage(featuredImage)
+  } else {
+    featured_image_url = existingImageUrl || undefined
+  }
+
+  const updatedPost: BlogPost = {
+    ...blogPosts[index],
+    title,
+    slug,
+    content,
+    status,
+    updated_at: new Date().toISOString(),
+    meta_description: meta_description || undefined,
+    keywords: keywords ? keywords.split(",").map((k) => k.trim()) : undefined,
+    featured_image_url,
+  }
+
+  blogPosts[index] = updatedPost
+
+  // Revalidate paths for blog list and updated post
+  revalidatePath("/blog")
+  revalidatePath(`/blog/${slug}`)
+  revalidatePath("/sitemap.xml")
+  revalidatePath("/rss.xml")
+
+  return { success: true, message: "Blog post updated successfully!", blogPost: updatedPost }
 }
 
 export async function deleteBlogPost(id: string): Promise<{ success: boolean; message: string }> {
-  try {
-    if (!process.env.POSTGRES_URL) {
-      return { success: false, message: "Database connection error: POSTGRES_URL is not configured." }
-    }
+  const initialLength = blogPosts.length
+  blogPosts = blogPosts.filter((post) => post.id !== id)
 
-    // Optionally, delete the associated blob image here if it exists
-    const { rows } = await sql<{
-      featured_image_url: string | null
-    }>`SELECT featured_image_url FROM blog_posts WHERE id = ${id};`
-    if (rows.length > 0 && rows[0].featured_image_url) {
-      try {
-        // Ensure the URL is a full Blob URL before deleting
-        const blobPath = rows[0].featured_image_url.startsWith("https://blob.vercel-storage.com/")
-          ? rows[0].featured_image_url.substring("https://blob.vercel-storage.com".length)
-          : rows[0].featured_image_url // Fallback if it's just a path
-
-        await del(blobPath, { token: process.env.BLOB_READ_WRITE_TOKEN })
-        console.log(`Deleted associated blob: ${rows[0].featured_image_url}`)
-      } catch (blobError) {
-        console.error("Error deleting associated blob image:", blobError)
-      }
-    }
-
-    await sql`DELETE FROM blog_posts WHERE id = ${id};`
-    revalidatePath("/admin/blog-manager") // Revalidate admin page
+  if (blogPosts.length < initialLength) {
+    // Revalidate paths for blog list and potentially the deleted post's slug
     revalidatePath("/blog")
+    // If you know the slug of the deleted post, you might revalidate it specifically
+    // revalidatePath(`/blog/${deletedPostSlug}`);
     revalidatePath("/sitemap.xml")
     revalidatePath("/rss.xml")
-    return { success: true, message: "Blog post deleted successfully!" }
-  } catch (error: any) {
-    console.error("Error deleting blog post:", error)
-    let errorMessage = "Failed to delete blog post."
-    if (error.message) {
-      errorMessage = `Failed to delete blog post: ${error.message}`
-    }
-    return { success: false, message: errorMessage }
+    return { success: true, message: "Blog post deleted successfully." }
+  } else {
+    return { success: false, message: "Blog post not found." }
   }
 }

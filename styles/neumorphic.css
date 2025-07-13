@@ -1,0 +1,64 @@
+/* Neumorphic Button Styles - Dark Theme */
+.jupiter-button-dark {
+  background: linear-gradient(145deg, #2a2a2a, #1e1e1e);
+  border: none;
+  color: #ffffff;
+  box-shadow: 8px 8px 16px #0f0f0f, -8px -8px 16px #3a3a3a;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.jupiter-button-dark:hover {
+  background: linear-gradient(145deg, #2e2e2e, #1a1a1a);
+  box-shadow: 6px 6px 12px #0f0f0f, -6px -6px 12px #3a3a3a;
+  transform: translateY(-1px);
+}
+
+.jupiter-button-dark:active {
+  background: linear-gradient(145deg, #1e1e1e, #2a2a2a);
+  box-shadow: inset 4px 4px 8px #0f0f0f, inset -4px -4px 8px #3a3a3a;
+  transform: translateY(0);
+}
+
+.jupiter-button-dark:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 4px 4px 8px #0f0f0f, -4px -4px 8px #3a3a3a;
+}
+
+/* Neumorphic Base Backgrounds */
+.neumorphic-base {
+  background: linear-gradient(145deg, #2a2a2a, #1e1e1e);
+  box-shadow: 8px 8px 16px #0f0f0f, -8px -8px 16px #3a3a3a;
+}
+
+.neumorphic-inset {
+  background: linear-gradient(145deg, #1e1e1e, #2a2a2a);
+  box-shadow: inset 4px 4px 8px #0f0f0f, inset -4px -4px 8px #3a3a3a;
+}
+
+/* Override any bright colors */
+.bg-cyan-400,
+.bg-green-500,
+.bg-blue-500,
+.bg-red-500,
+.bg-yellow-500 {
+  background: linear-gradient(145deg, #2a2a2a, #1e1e1e) !important;
+  color: #ffffff !important;
+}
+
+/* Text accent color - only for text, not backgrounds */
+.text-accent {
+  color: #afcd4f;
+}
+
+/* Ensure consistent styling across all button variants */
+button[class*="bg-"],
+.btn {
+  background: linear-gradient(145deg, #2a2a2a, #1e1e1e) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 8px 8px 16px #0f0f0f, -8px -8px 16px #3a3a3a !important;
+}

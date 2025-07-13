@@ -3,7 +3,9 @@ import type { Metadata } from "next"
 import { Inter, Syne } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { WalletProviderWrapper } from "@/components/wallet-provider-wrapper"
+import { Header } from "@/components/header" // Assuming Header exists and is needed
+import { Footer } from "@/components/footer" // Assuming Footer exists and is needed
+import WalletProviderWrapper from "@/components/wallet-provider-wrapper" // Corrected to default import
 
 const inter = Inter({
   subsets: ["latin"],
@@ -46,7 +48,14 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${syne.variable}`}>
       <body style={{ backgroundColor: "#0C0C0C" }} className="text-white antialiased font-inter">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
-          <WalletProviderWrapper>{children}</WalletProviderWrapper>
+          <WalletProviderWrapper>
+            {/* Assuming Header and Footer are part of the main layout */}
+            <div className="flex flex-col min-h-screen">
+              <Header />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
+          </WalletProviderWrapper>
         </ThemeProvider>
       </body>
     </html>

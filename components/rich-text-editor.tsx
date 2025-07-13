@@ -30,7 +30,7 @@ interface RichTextEditorProps {
   placeholder?: string
 }
 
-function RichTextEditor({ value, onChange, disabled, placeholder }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, disabled, placeholder }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -254,5 +254,3 @@ function RichTextEditor({ value, onChange, disabled, placeholder }: RichTextEdit
     </div>
   )
 }
-
-export { RichTextEditor }
