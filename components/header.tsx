@@ -1,123 +1,45 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import Image from "next/image"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { SocialPostScroller } from "@/components/social-post-scroller"
-import { useWallet } from "@solana/wallet-adapter-react"
-import { useWalletModal } from "@solana/wallet-adapter-react-ui"
-import { useRouter } from "next/navigation"
-
-type FeedType = "twitter" | "linkedin"
+import { ModeToggle } from "@/components/mode-toggle"
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
 
 export function Header() {
-  const [scrolled, setScrolled] = useState(false)
-  const [loaded, setLoaded] = useState(false)
-  const [currentFeedType, setCurrentFeedType] = useState<FeedType>("twitter")
-
-  const { publicKey, connected, disconnect } = useWallet()
-  const { setVisible } = useWalletModal()
-  const router = useRouter()
-
-  const authorizedWalletAddress = useMemo(() => process.env.NEXT_PUBLIC_AUTHORIZED_SOLANA_WALLET, [])
-
-  const isAuthorized = useMemo(() => {
-    return connected && publicKey?.toBase58() === authorizedWalletAddress
-  }, [connected, publicKey, authorizedWalletAddress])
-
-  useEffect(() => {
-    setLoaded(true)
-
-    const handleScroll = () => {
-      const isScrolled = window.scrollY > 10
-      if (isScrolled !== scrolled) {
-        setScrolled(isScrolled)
-      }
-    }
-
-    window.addEventListener("scroll", handleScroll)
-    return () => {
-      window.removeEventListener("scroll", handleScroll)
-    }
-  }, [scrolled])
-
-  // New useEffect to handle post-connection redirection for unauthorized users
-  useEffect(() => {
-    if (connected) {
-      if (!isAuthorized) {
-        console.warn("Unauthorized wallet connected:", publicKey?.toBase58()) // Log the unauthorized address
-        router.push("/contact")
-        // Optionally, disconnect the wallet after redirecting
-        // disconnect();
-      } else {
-        if (window.location.pathname !== "/admin") {
-          router.push("/admin")
-        }
-      }
-    }
-  }, [connected, isAuthorized, router, disconnect, publicKey]) // Add publicKey to dependencies
-
-  const toggleFeedType = () => {
-    setCurrentFeedType((prevType) => (prevType === "twitter" ? "linkedin" : "twitter"))
-  }
-
-  const handleConnectClick = () => {
-    if (isAuthorized) {
-      // If already connected AND authorized, go to editor
-      router.push("/admin")
-    } else if (connected) {
-      // If connected but NOT authorized, disconnect
-      disconnect()
-    } else {
-      // If not connected, open the wallet modal for anyone
-      setVisible(true)
-    }
-  }
-
-  const buttonText = useMemo(() => {
-    if (isAuthorized) {
-      return "EDITOR"
-    } else if (connected) {
-      return "DISCONNECT"
-    } else {
-      return "CONNECT WALLET"
-    }
-  }, [isAuthorized, connected])
-
   return (
-    <header
-      className={`sticky top-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-black/80 backdrop-blur-md" : "bg-transparent"
-      }`}
-      style={{ backgroundColor: scrolled ? "rgba(12, 12, 12, 0.8)" : "transparent" }}
-    >
-      <div
-        className={`container max-w-4xl mx-auto px-4 py-4 flex justify-between items-center transition-all duration-500 ${
-          loaded ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        {/* Logo div */}
-        <div className="neumorphic-base p-2 inline-flex items-center justify-center h-12">
-          <Image
-            src="/images/waslost-logo.png"
-            alt="WasLost AI Logo"
-            width={180}
-            height={40}
-            priority
-            className="h-8 w-auto"
-          />
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-14 items-center">
+        <div className="mr-4 hidden md:flex">
+          <Link className="mr-6 flex items-center space-x-2" href="/">
+            <span className="hidden font-bold sm:inline-block font-syne text-[#afcd4f]">WasLost.tech</span>
+          </Link>
+          <nav className="flex items-center space-x-6 text-sm font-medium">
+            <Link className="transition-colors hover:text-foreground/80 text-foreground/60" href="/projects">
+              Projects
+            </Link>
+            <Link className="transition-colors hover:text-foreground/80 text-foreground/60" href="/blog">
+              Blog
+            </Link>
+            <Link className="transition-colors hover:text-foreground/80 text-foreground/60" href="/contact">
+              Contact
+            </Link>
+          </nav>
         </div>
-
-        {/* Social Post Scroller */}
-        <SocialPostScroller feedType={currentFeedType} onToggleFeed={toggleFeedType} />
-
-        {/* CONNECT / EDITOR / DISCONNECT button */}
-        <Button
-          className="jupiter-button-dark h-12 px-6 bg-neumorphic-base hover:bg-neumorphic-base"
-          onClick={handleConnectClick}
-        >
-          {buttonText}
-        </Button>
+        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+          <div className="w-full flex-1 md:w-auto md:flex-none">
+            <Button
+              variant="outline"
+              className="inline-flex items-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 relative w-full justify-start text-sm text-muted-foreground sm:pr-12 md:w-40 lg:w-64"
+            >
+              <span className="hidden lg:inline-flex">Search...</span>
+              <span className="inline-flex lg:hidden">Search...</span>
+            </Button>
+          </div>
+          <nav className="flex items-center space-x-2">
+            <WalletMultiButton />
+            <ModeToggle />
+          </nav>
+        </div>
       </div>
     </header>
   )

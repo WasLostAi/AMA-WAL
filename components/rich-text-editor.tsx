@@ -1,4 +1,6 @@
 "use client"
+
+import type React from "react"
 import { useCallback, useEffect } from "react"
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
@@ -30,7 +32,7 @@ interface RichTextEditorProps {
   placeholder?: string
 }
 
-export function RichTextEditor({ value, onChange, disabled, placeholder }: RichTextEditorProps) {
+const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, disabled, placeholder }) => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -254,3 +256,5 @@ export function RichTextEditor({ value, onChange, disabled, placeholder }: RichT
     </div>
   )
 }
+
+export default RichTextEditor

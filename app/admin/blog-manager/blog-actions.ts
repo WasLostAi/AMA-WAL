@@ -1,91 +1,94 @@
 "use server"
-
 import { revalidatePath } from "next/cache"
-import { v4 as uuidv4 } from "uuid"
+import { customAlphabet } from "nanoid"
 
-export type BlogPost = {
+const nanoid = customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", 7)
+
+export interface BlogPost {
   id: string
   title: string
   slug: string
   content: string
+  excerpt?: string
   status: "draft" | "published" | "archived"
-  generated_at: string
-  updated_at?: string
   meta_description?: string
   keywords?: string[]
   featured_image_url?: string
+  generated_at: string
+  updated_at: string
+  published: boolean
 }
 
 // Mock database for blog posts
-let blogPosts: BlogPost[] = [
+let mockBlogPosts: BlogPost[] = [
   {
     id: "1",
-    title: "The Future of AI in Web3",
-    slug: "future-of-ai-web3",
-    content: "This is a **mock** blog post about the exciting future of AI in Web3.",
+    title: "The Rise of AI Agents in Web3",
+    slug: "ai-agents-web3",
+    content: "This is the content for the first blog post about AI agents in Web3...",
+    excerpt: "Exploring the integration of AI with decentralized technologies.",
     status: "published",
-    generated_at: new Date().toISOString(),
-    meta_description: "Explore the convergence of AI and Web3 technologies.",
-    keywords: ["AI", "Web3", "Blockchain"],
+    meta_description: "Learn about AI agents and their impact on Web3.",
+    keywords: ["AI", "Web3", "Agents", "Blockchain"],
     featured_image_url: "/placeholder.svg?height=400&width=600",
+    generated_at: new Date("2023-01-15T10:00:00Z").toISOString(),
+    updated_at: new Date("2023-01-15T10:00:00Z").toISOString(),
+    published: true,
   },
   {
     id: "2",
-    title: "Getting Started with Solana Development",
-    slug: "solana-development-guide",
-    content: "A comprehensive guide to starting your journey in Solana development.",
-    status: "draft",
-    generated_at: new Date().toISOString(),
-    meta_description: "Begin your Solana development journey with this guide.",
-    keywords: ["Solana", "Development", "Blockchain"],
+    title: "Solana Ecosystem Deep Dive",
+    slug: "solana-ecosystem-deep-dive",
+    content: "A comprehensive look into the Solana blockchain and its growing ecosystem.",
+    excerpt: "Understanding the key projects and innovations on Solana.",
+    status: "published",
+    meta_description: "Dive deep into the Solana blockchain ecosystem.",
+    keywords: ["Solana", "Blockchain", "Crypto", "Decentralized"],
     featured_image_url: "/placeholder.svg?height=400&width=600",
+    generated_at: new Date("2023-02-20T11:30:00Z").toISOString(),
+    updated_at: new Date("2023-02-20T11:30:00Z").toISOString(),
+    published: true,
+  },
+  {
+    id: "3",
+    title: "Building Decentralized Applications with Next.js",
+    slug: "building-dapps-nextjs",
+    content: "A guide to developing dApps using Next.js and various Web3 libraries.",
+    excerpt: "Step-by-step tutorial for dApp development.",
+    status: "draft",
+    meta_description: "Develop decentralized applications with Next.js.",
+    keywords: ["dApps", "Next.js", "Web3", "Development"],
+    featured_image_url: "/placeholder.svg?height=400&width=600",
+    generated_at: new Date("2023-03-10T09:00:00Z").toISOString(),
+    updated_at: new Date("2023-03-10T09:00:00Z").toISOString(),
+    published: false,
   },
 ]
 
-// Helper to simulate image upload (replace with actual Blob/S3 upload in production)
-async function uploadImageToMockStorage(file: File): Promise<string> {
-  // In a real application, you would upload to Vercel Blob, S3, etc.
-  // For now, we'll just create a blob URL or use a placeholder.
-  return URL.createObjectURL(file) // This is client-side only, won't persist on server
-  // Or for a server-side mock:
-  // return `/placeholder.svg?height=400&width=600&query=${encodeURIComponent(file.name)}`;
-}
-
 export async function getBlogPosts(): Promise<{ data: BlogPost[] | null; message: string }> {
   try {
-    // Simulate network delay
+    // Simulate database fetch
     await new Promise((resolve) => setTimeout(resolve, 500))
-    return { data: blogPosts, message: "Blog posts fetched successfully." }
+    return { data: mockBlogPosts, message: "Blog posts fetched successfully." }
   } catch (error) {
-    console.error("Error fetching blog posts:", error)
+    console.error("Database query error:", error)
     return { data: null, message: "Failed to fetch blog posts." }
-  }
-}
-
-export async function getPublishedBlogPosts(): Promise<{ data: BlogPost[] | null; message: string }> {
-  try {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    const publishedPosts = blogPosts.filter((post) => post.status === "published")
-    return { data: publishedPosts, message: "Published blog posts fetched successfully." }
-  } catch (error) {
-    console.error("Error fetching published blog posts:", error)
-    return { data: null, message: "Failed to fetch published blog posts." }
   }
 }
 
 export async function getBlogPostBySlug(slug: string): Promise<{ data: BlogPost | null; message: string }> {
   try {
+    // Simulate database fetch
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const post = blogPosts.find((p) => p.slug === slug)
+    const post = mockBlogPosts.find((p) => p.slug === slug)
     if (post) {
       return { data: post, message: "Blog post fetched successfully." }
     } else {
       return { data: null, message: "Blog post not found." }
     }
   } catch (error) {
-    console.error("Error fetching blog post by slug:", error)
-    return { data: null, message: "Failed to fetch blog post." }
+    console.error("Database query error:", error)
+    return { data: null, message: "Failed to fetch blog post by slug." }
   }
 }
 
@@ -101,41 +104,52 @@ export async function createBlogPost(
   const keywords = formData.get("keywords") as string
   const featuredImage = formData.get("featuredImage") as File | null
 
-  if (!title || !slug || !content || !status) {
-    return { success: false, message: "Missing required fields." }
+  if (!title || !slug || !content) {
+    return { success: false, message: "Title, slug, and content are required." }
   }
 
-  if (blogPosts.some((post) => post.slug === slug)) {
+  // Check for duplicate slug
+  if (mockBlogPosts.some((post) => post.slug === slug)) {
     return { success: false, message: "A blog post with this slug already exists." }
   }
 
-  let featured_image_url: string | undefined
+  let featured_image_url: string | undefined = undefined
   if (featuredImage && featuredImage.size > 0) {
-    // In a real app, upload to Vercel Blob or similar
-    featured_image_url = await uploadImageToMockStorage(featuredImage)
+    try {
+      // Simulate blob upload
+      const filename = `${nanoid()}-${featuredImage.name}`
+      // In a real scenario, you'd upload to Vercel Blob here
+      // const blob = await put(filename, featuredImage, { access: 'public' });
+      featured_image_url = `/placeholder.svg?height=400&width=600&query=${encodeURIComponent(filename)}`
+    } catch (error) {
+      console.error("Error uploading featured image:", error)
+      return { success: false, message: "Failed to upload featured image." }
+    }
   }
 
-  const newPost: BlogPost = {
-    id: uuidv4(),
+  const newBlogPost: BlogPost = {
+    id: nanoid(),
     title,
     slug,
     content,
+    excerpt: content.substring(0, 150) + "...", // Simple excerpt
     status,
-    generated_at: new Date().toISOString(),
     meta_description: meta_description || undefined,
     keywords: keywords ? keywords.split(",").map((k) => k.trim()) : undefined,
     featured_image_url,
+    generated_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    published: status === "published",
   }
 
-  blogPosts.push(newPost)
-
-  // Revalidate paths for blog list and new post
-  revalidatePath("/blog")
+  mockBlogPosts.push(newBlogPost)
+  revalidatePath("/admin/blog-manager")
   revalidatePath(`/blog/${slug}`)
-  revalidatePath("/sitemap.xml") // Assuming sitemap includes blog posts
-  revalidatePath("/rss.xml") // Assuming RSS feed includes blog posts
+  revalidatePath("/blog")
+  revalidatePath("/sitemap.xml")
+  revalidatePath("/rss.xml")
 
-  return { success: true, message: "Blog post created successfully!", blogPost: newPost }
+  return { success: true, message: "Blog post created successfully!", blogPost: newBlogPost }
 }
 
 export async function updateBlogPost(
@@ -153,65 +167,104 @@ export async function updateBlogPost(
   const existingImageUrl = formData.get("existingImageUrl") as string | null
   const clearFeaturedImage = formData.get("clearFeaturedImage") === "true"
 
-  if (!id || !title || !slug || !content || !status) {
-    return { success: false, message: "Missing required fields." }
+  if (!id || !title || !slug || !content) {
+    return { success: false, message: "ID, title, slug, and content are required." }
   }
 
-  const index = blogPosts.findIndex((post) => post.id === id)
-  if (index === -1) {
+  const postIndex = mockBlogPosts.findIndex((post) => post.id === id)
+  if (postIndex === -1) {
     return { success: false, message: "Blog post not found." }
   }
 
-  // Check for slug conflict with other posts
-  if (blogPosts.some((post) => post.slug === slug && post.id !== id)) {
+  const originalPost = mockBlogPosts[postIndex]
+
+  // Check for duplicate slug, excluding the current post
+  if (mockBlogPosts.some((post) => post.slug === slug && post.id !== id)) {
     return { success: false, message: "A blog post with this slug already exists." }
   }
 
-  let featured_image_url: string | undefined
+  let newFeaturedImageUrl: string | undefined = originalPost.featured_image_url
+
   if (clearFeaturedImage) {
-    featured_image_url = undefined
+    newFeaturedImageUrl = undefined
+    // In a real scenario, you'd delete the blob here if it existed
+    // if (originalPost.featured_image_url) {
+    //   await del(originalPost.featured_image_url);
+    // }
   } else if (featuredImage && featuredImage.size > 0) {
-    featured_image_url = await uploadImageToMockStorage(featuredImage)
-  } else {
-    featured_image_url = existingImageUrl || undefined
+    try {
+      // Simulate blob upload
+      const filename = `${nanoid()}-${featuredImage.name}`
+      // In a real scenario, you'd upload to Vercel Blob here
+      // const blob = await put(filename, featuredImage, { access: 'public' });
+      newFeaturedImageUrl = `/placeholder.svg?height=400&width=600&query=${encodeURIComponent(filename)}`
+      // If there was an old image, delete it
+      // if (originalPost.featured_image_url) {
+      //   await del(originalPost.featured_image_url);
+      // }
+    } catch (error) {
+      console.error("Error uploading new featured image:", error)
+      return { success: false, message: "Failed to upload new featured image." }
+    }
+  } else if (existingImageUrl) {
+    newFeaturedImageUrl = existingImageUrl
   }
 
-  const updatedPost: BlogPost = {
-    ...blogPosts[index],
+  const updatedBlogPost: BlogPost = {
+    ...originalPost,
     title,
     slug,
     content,
+    excerpt: content.substring(0, 150) + "...", // Simple excerpt
     status,
-    updated_at: new Date().toISOString(),
     meta_description: meta_description || undefined,
     keywords: keywords ? keywords.split(",").map((k) => k.trim()) : undefined,
-    featured_image_url,
+    featured_image_url: newFeaturedImageUrl,
+    updated_at: new Date().toISOString(),
+    published: status === "published",
   }
 
-  blogPosts[index] = updatedPost
+  mockBlogPosts[postIndex] = updatedBlogPost
 
-  // Revalidate paths for blog list and updated post
-  revalidatePath("/blog")
+  revalidatePath("/admin/blog-manager")
   revalidatePath(`/blog/${slug}`)
+  revalidatePath("/blog")
   revalidatePath("/sitemap.xml")
   revalidatePath("/rss.xml")
 
-  return { success: true, message: "Blog post updated successfully!", blogPost: updatedPost }
+  // If slug changed, revalidate old slug path
+  if (originalPost.slug !== slug) {
+    revalidatePath(`/blog/${originalPost.slug}`)
+  }
+
+  return { success: true, message: "Blog post updated successfully!", blogPost: updatedBlogPost }
 }
 
 export async function deleteBlogPost(id: string): Promise<{ success: boolean; message: string }> {
-  const initialLength = blogPosts.length
-  blogPosts = blogPosts.filter((post) => post.id !== id)
-
-  if (blogPosts.length < initialLength) {
-    // Revalidate paths for blog list and potentially the deleted post's slug
-    revalidatePath("/blog")
-    // If you know the slug of the deleted post, you might revalidate it specifically
-    // revalidatePath(`/blog/${deletedPostSlug}`);
-    revalidatePath("/sitemap.xml")
-    revalidatePath("/rss.xml")
-    return { success: true, message: "Blog post deleted successfully." }
-  } else {
+  const postIndex = mockBlogPosts.findIndex((post) => post.id === id)
+  if (postIndex === -1) {
     return { success: false, message: "Blog post not found." }
   }
+
+  const postToDelete = mockBlogPosts[postIndex]
+
+  // In a real scenario, you'd delete the blob here if it existed
+  // if (postToDelete.featured_image_url) {
+  //   try {
+  //     await del(postToDelete.featured_image_url);
+  //   } catch (error) {
+  //     console.error('Error deleting featured image blob:', error);
+  //     // Don't fail the entire deletion if blob deletion fails
+  //   }
+  // }
+
+  mockBlogPosts = mockBlogPosts.filter((post) => post.id !== id)
+
+  revalidatePath("/admin/blog-manager")
+  revalidatePath(`/blog/${postToDelete.slug}`)
+  revalidatePath("/blog")
+  revalidatePath("/sitemap.xml")
+  revalidatePath("/rss.xml")
+
+  return { success: true, message: "Blog post deleted successfully!" }
 }

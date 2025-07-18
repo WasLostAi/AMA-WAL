@@ -64,6 +64,7 @@
     "lucide-react": "^0.454.0",
     "mammoth": "latest",
     "marked": "latest",
+    "nanoid": "latest",
     "next": "15.2.4",
     "next-themes": "latest",
     "pdf-parse": "latest",
@@ -82,7 +83,6 @@
     "tailwindcss-animate": "^1.0.7",
     "turndown": "latest",
     "use-sync-external-store": "latest",
-    "uuid": "latest",
     "vaul": "^0.9.6",
     "zod": "^3.24.1",
     "zustand": "latest"

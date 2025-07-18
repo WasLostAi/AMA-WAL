@@ -3,40 +3,21 @@ import type { Metadata } from "next"
 import { Inter, Syne } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Header } from "@/components/header" // Assuming Header exists and is needed
-import { Footer } from "@/components/footer" // Assuming Footer exists and is needed
-import WalletProviderWrapper from "@/components/wallet-provider-wrapper" // Corrected to default import
+import { WalletProviderWrapper } from "@/components/wallet-provider-wrapper"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
+import { DomainGuard } from "@/components/domain-guard"
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-inter",
-})
-
+const inter = Inter({ subsets: ["latin"] })
 const syne = Syne({
   subsets: ["latin"],
-  display: "swap",
   variable: "--font-syne",
-  weight: ["400", "500", "600", "700", "800"],
 })
 
 export const metadata: Metadata = {
-  title: "WasLost Ai",
-  description: "Ask Me Anything!",
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon-96x96.png",
-    apple: "/apple-touch-icon.png",
-    other: [
-      {
-        rel: "mask-icon",
-        url: "/favicon.svg",
-        color: "#0C0C0C",
-      },
-    ],
-  },
-  manifest: "/site.webmanifest",
-  generator: "v0.dev",
+  title: "WasLost.tech - AI-Powered Web4 Platform",
+  description: "Advanced AI chatbot and content management platform for Web4 applications",
+    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -45,16 +26,17 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${syne.variable}`}>
-      <body style={{ backgroundColor: "#0C0C0C" }} className="text-white antialiased font-inter">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} ${syne.variable}`}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <WalletProviderWrapper>
-            {/* Assuming Header and Footer are part of the main layout */}
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
+            <DomainGuard>
+              <div className="flex flex-col min-h-screen">
+                <Header />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </div>
+            </DomainGuard>
           </WalletProviderWrapper>
         </ThemeProvider>
       </body>

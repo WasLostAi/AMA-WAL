@@ -32,7 +32,7 @@ import {
 } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import Image from "next/image"
-import { RichTextEditor } from "@/components/rich-text-editor" // Changed to named import
+import RichTextEditor from "@/components/rich-text-editor"
 import { ContentManager } from "@/components/adaptive/content-manager"
 import { SmartSetup } from "@/components/adaptive/smart-setup"
 import { AdminAssistant } from "@/components/adaptive/admin-assistant"
@@ -808,7 +808,7 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (file && file.type.startsWith("image/")) {
       setBlogPostFeaturedImage(file)
-      setBlogPostFeaturedImagePreview(URL.createObjectURL(file))
+      setBlogPostFeaturedImagePreview(URL.URL.createObjectURL(file))
     } else {
       setBlogPostFeaturedImage(null)
       setBlogPostFeaturedImagePreview(null)
