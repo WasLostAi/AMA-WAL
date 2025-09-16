@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
@@ -25,11 +25,21 @@ interface RichTextEditorProps {
   className?: string
 }
 
-export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
+export function RichTextEditor({
+  value,
+  onChange,
+  placeholder = "Start writing...",
+  className = "",
+}: RichTextEditorProps) {
+  const [isClient, setIsClient] = useState(false)
   const editorRef = useRef<HTMLDivElement>(null)
-  const [isEditing, setIsEditing] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const executeCommand = (command: string, value?: string) => {
+    if (!isClient) return
     document.execCommand(command, false, value)
     if (editorRef.current) {
       onChange(editorRef.current.innerHTML)
@@ -56,68 +66,87 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
     }
   }
 
+  const toolbarButtons = [
+    { icon: Bold, command: "bold", title: "Bold" },
+    { icon: Italic, command: "italic", title: "Italic" },
+    { icon: Underline, command: "underline", title: "Underline" },
+    { icon: Heading1, command: "formatBlock", value: "h1", title: "Heading 1" },
+    { icon: Heading2, command: "formatBlock", value: "h2", title: "Heading 2" },
+    { icon: Heading3, command: "formatBlock", value: "h3", title: "Heading 3" },
+    { icon: List, command: "insertUnorderedList", title: "Bullet List" },
+    { icon: ListOrdered, command: "insertOrderedList", title: "Numbered List" },
+    { icon: Quote, command: "formatBlock", value: "blockquote", title: "Quote" },
+    { icon: Code, command: "formatBlock", value: "pre", title: "Code Block" },
+  ]
+
+  if (!isClient) {
+    return (
+      <Card className="p-4">
+        <div className="h-64 bg-muted animate-pulse rounded" />
+      </Card>
+    )
+  }
+
   return (
-    <Card className={`p-4 ${className}`}>
-      <div className="border-b pb-2 mb-4">
-        <div className="flex flex-wrap gap-1">
-          <Button type="button" variant="ghost" size="sm" onClick={() => executeCommand("formatBlock", "h1")}>
-            <Heading1 className="h-4 w-4" />
+    <Card className={`overflow-hidden ${className}`}>
+      {/* Toolbar */}
+      <div className="flex flex-wrap gap-1 p-2 border-b bg-muted/50">
+        {toolbarButtons.map(({ icon: Icon, command, value, title }) => (
+          <Button
+            key={command}
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => executeCommand(command, value)}
+            title={title}
+            className="h-8 w-8 p-0"
+          >
+            <Icon className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => executeCommand("formatBlock", "h2")}>
-            <Heading2 className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => executeCommand("formatBlock", "h3")}>
-            <Heading3 className="h-4 w-4" />
-          </Button>
-          <div className="w-px h-6 bg-border mx-1" />
-          <Button type="button" variant="ghost" size="sm" onClick={() => executeCommand("bold")}>
-            <Bold className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => executeCommand("italic")}>
-            <Italic className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => executeCommand("underline")}>
-            <Underline className="h-4 w-4" />
-          </Button>
-          <div className="w-px h-6 bg-border mx-1" />
-          <Button type="button" variant="ghost" size="sm" onClick={() => executeCommand("insertUnorderedList")}>
-            <List className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => executeCommand("insertOrderedList")}>
-            <ListOrdered className="h-4 w-4" />
-          </Button>
-          <div className="w-px h-6 bg-border mx-1" />
-          <Button type="button" variant="ghost" size="sm" onClick={insertLink}>
-            <LinkIcon className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={insertImage}>
-            <ImageIcon className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => executeCommand("formatBlock", "blockquote")}>
-            <Quote className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => executeCommand("formatBlock", "pre")}>
-            <Code className="h-4 w-4" />
-          </Button>
-        </div>
+        ))}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={insertLink}
+          title="Insert Link"
+          className="h-8 w-8 p-0"
+        >
+          <LinkIcon className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={insertImage}
+          title="Insert Image"
+          className="h-8 w-8 p-0"
+        >
+          <ImageIcon className="h-4 w-4" />
+        </Button>
       </div>
+
+      {/* Editor */}
       <div
         ref={editorRef}
         contentEditable
-        className="min-h-[200px] p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-        dangerouslySetInnerHTML={{ __html: value }}
         onInput={handleInput}
-        onFocus={() => setIsEditing(true)}
-        onBlur={() => setIsEditing(false)}
-        style={{ whiteSpace: "pre-wrap" }}
+        dangerouslySetInnerHTML={{ __html: value }}
+        className="min-h-[300px] p-4 focus:outline-none prose prose-sm max-w-none"
+        style={{
+          wordBreak: "break-word",
+          overflowWrap: "break-word",
+        }}
+        data-placeholder={placeholder}
       />
-      {!value && !isEditing && (
-        <div className="absolute top-16 left-7 text-muted-foreground pointer-events-none">
-          {placeholder || "Start writing..."}
-        </div>
-      )}
+
+      <style jsx>{`
+        [contenteditable]:empty:before {
+          content: attr(data-placeholder);
+          color: #9ca3af;
+          pointer-events: none;
+        }
+      `}</style>
     </Card>
   )
 }
-
-export default RichTextEditor

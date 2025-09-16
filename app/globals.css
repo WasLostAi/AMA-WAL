@@ -34,7 +34,7 @@
     --destructive: 0 100% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 10%; /* Subtle border for neumorphic elements */
+    --border: 0 0% 20%; /* Removed border visibility */
     --input: 0 0% 7%; /* Base for input fields */
     --ring: 174 100% 45%;
 
@@ -75,11 +75,22 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: transparent; /* Remove all default borders */
   }
   body {
     @apply bg-background text-foreground;
     background-color: var(--neumorphic-base); /* Ensure body uses the base neumorphic color */
+    overflow-x: hidden; /* Remove horizontal scrollbar */
+  }
+
+  /* Hide scrollbars completely */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* For Firefox */
+  html {
+    scrollbar-width: none;
   }
 
   /* Typography System */
@@ -115,26 +126,6 @@
     @apply font-inter text-sm leading-relaxed text-muted-foreground;
   }
 
-  /* Custom Scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px; /* Width of the scrollbar */
-  }
-
-  ::-webkit-scrollbar-track {
-    background: var(--neumorphic-dark); /* Color of the track */
-    border-radius: 10px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: var(--neumorphic-light); /* Color of the scroll thumb */
-    border-radius: 10px;
-    border: 2px solid var(--neumorphic-dark); /* Creates a subtle border around the thumb */
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--muted-foreground); /* Color when hovering over the thumb */
-  }
-
   /* Ensure no default blue outlines or link colors */
   a {
     @apply text-foreground; /* Default link color */
@@ -154,6 +145,7 @@
     border-radius: theme("borderRadius.lg");
     box-shadow: 3px 3px 6px var(--neumorphic-dark), -3px -3px 6px var(--neumorphic-light);
     transition: all 0.3s ease;
+    border: none; /* Remove all borders */
   }
 
   .neumorphic-inset {
@@ -161,6 +153,7 @@
     border-radius: theme("borderRadius.lg");
     box-shadow: inset 1.5px 1.5px 3px var(--neumorphic-dark), inset -1.5px -1.5px 3px var(--neumorphic-light);
     transition: all 0.3s ease;
+    border: none; /* Remove all borders */
   }
 
   /* Neumorphic styles for dark theme */
@@ -169,6 +162,7 @@
     background: var(--neumorphic-light); /* Base for raised card */
     box-shadow: 6px 6px 12px var(--neumorphic-dark), -6px -6px 12px var(--neumorphic-highlight); /* Use new highlight */
     transition: all 0.2s ease-in-out;
+    border: none; /* Remove all borders */
   }
 
   .jupiter-card:hover {
@@ -179,9 +173,9 @@
   .jupiter-panel {
     border-radius: 1.5rem;
     background: var(--neumorphic-base); /* Base color for recessed effect */
-    border: 1px solid rgba(255, 255, 255, 0.03); /* More subtle border */
     box-shadow: inset 5px 5px 12px var(--neumorphic-dark), /* Darker inner shadow, slightly more blur */ inset -5px -5px
       12px var(--neumorphic-light); /* Lighter inner highlight, slightly more blur */
+    border: none; /* Remove all borders */
   }
 
   .jupiter-outer-panel {
@@ -189,7 +183,7 @@
     background-color: rgba(12, 12, 12, 0.8); /* Slightly more opaque for neumorphic base */
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.03); /* Even more subtle border */
+    border: none; /* Remove all borders */
   }
 
   .jupiter-button {
@@ -197,6 +191,7 @@
     border-radius: 10px;
     box-shadow: 3px 3px 6px var(--neumorphic-dark), -3px -3px 6px var(--neumorphic-light);
     transition: all 0.2s ease-in-out;
+    border: none; /* Remove all borders */
   }
 
   .jupiter-button:hover {
@@ -207,6 +202,7 @@
     @apply jupiter-button text-black;
     background: linear-gradient(to right, #2ed3b7, #c7f284);
     box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.4), -3px -3px 6px rgba(26, 26, 26, 0.4);
+    border: none; /* Remove all borders */
   }
   .jupiter-button-gradient:hover {
     box-shadow: 1.5px 1.5px 3px rgba(0, 0, 0, 0.3), -1.5px -1.5px 3px rgba(26, 26, 26, 0.3);
@@ -222,7 +218,7 @@
     color: #afcd4f !important; /* Green text for static state */
     background-color: var(--neumorphic-base) !important; /* Ensure base background is applied */
     box-shadow: 3px 3px 6px var(--neumorphic-dark), -3px -3px 6px var(--neumorphic-light);
-    border: none; /* Neumorphic buttons typically don't have hard borders */
+    border: none !important; /* Neumorphic buttons typically don't have hard borders */
   }
   .jupiter-button-dark:hover {
     color: black !important; /* Black text on hover */
@@ -376,4 +372,18 @@
 /* Custom primary text color for headings/titles */
 .text-primary {
   color: #afcd4f; /* A distinct green color */
+}
+
+/* Marquee animation for social posts */
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
 }

@@ -7,139 +7,122 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Upload, Download, RotateCw, Crop } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Upload, Download, RotateCw, Crop, Palette } from "lucide-react"
 
 interface ImageResizerProps {
   onImageProcessed?: (imageUrl: string) => void
-  maxWidth?: number
-  maxHeight?: number
-  quality?: number
+  className?: string
 }
 
-const ImageResizer = ({ onImageProcessed, maxWidth = 1200, maxHeight = 800, quality = 0.8 }: ImageResizerProps) => {
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string>("")
-  const [processedUrl, setProcessedUrl] = useState<string>("")
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
-  const [newDimensions, setNewDimensions] = useState({ width: 0, height: 0 })
+export function ImageResizerDemo({ onImageProcessed, className = "" }: ImageResizerProps) {
+  const [originalImage, setOriginalImage] = useState<string | null>(null)
+  const [processedImage, setProcessedImage] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
+  const [quality, setQuality] = useState(0.9)
+  const [format, setFormat] = useState("jpeg")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file && file.type.startsWith("image/")) {
-      setSelectedImage(file)
-      const url = URL.createObjectURL(file)
-      setPreviewUrl(url)
+    if (!file) return
 
-      // Get image dimensions
-      const img = new Image()
-      img.onload = () => {
-        setDimensions({ width: img.width, height: img.height })
-        setNewDimensions({ width: img.width, height: img.height })
-      }
-      img.src = url
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file")
+      return
     }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setOriginalImage(result)
+      setProcessedImage(null)
+    }
+    reader.readAsDataURL(file)
   }, [])
 
-  const resizeImage = useCallback(async () => {
-    if (!selectedImage || !canvasRef.current) return
+  const processImage = useCallback(async () => {
+    if (!originalImage || !canvasRef.current) return
 
     setIsProcessing(true)
 
     try {
-      const canvas = canvasRef.current
-      const ctx = canvas.getContext("2d")
-      if (!ctx) return
-
       const img = new Image()
       img.crossOrigin = "anonymous"
 
       img.onload = () => {
-        // Calculate new dimensions maintaining aspect ratio
-        let { width, height } = newDimensions
+        const canvas = canvasRef.current!
+        const ctx = canvas.getContext("2d")!
 
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width
-          width = maxWidth
-        }
+        // Set canvas dimensions
+        canvas.width = dimensions.width
+        canvas.height = dimensions.height
 
-        if (height > maxHeight) {
-          width = (width * maxHeight) / height
-          height = maxHeight
-        }
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-        canvas.width = width
-        canvas.height = height
+        // Draw image with new dimensions
+        ctx.drawImage(img, 0, 0, dimensions.width, dimensions.height)
 
-        // Draw and resize image
-        ctx.drawImage(img, 0, 0, width, height)
+        // Convert to desired format
+        const mimeType = format === "png" ? "image/png" : "image/jpeg"
+        const processedDataUrl = canvas.toDataURL(mimeType, quality)
 
-        // Convert to blob
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const url = URL.createObjectURL(blob)
-              setProcessedUrl(url)
-              onImageProcessed?.(url)
-            }
-            setIsProcessing(false)
-          },
-          "image/jpeg",
-          quality,
-        )
+        setProcessedImage(processedDataUrl)
+        onImageProcessed?.(processedDataUrl)
+        setIsProcessing(false)
       }
 
-      img.src = previewUrl
+      img.onerror = () => {
+        console.error("Failed to load image")
+        setIsProcessing(false)
+      }
+
+      img.src = originalImage
     } catch (error) {
-      console.error("Error resizing image:", error)
+      console.error("Error processing image:", error)
       setIsProcessing(false)
     }
-  }, [selectedImage, newDimensions, maxWidth, maxHeight, quality, previewUrl, onImageProcessed])
+  }, [originalImage, dimensions, quality, format, onImageProcessed])
 
   const downloadImage = useCallback(() => {
-    if (!processedUrl) return
+    if (!processedImage) return
 
     const link = document.createElement("a")
-    link.href = processedUrl
-    link.download = `resized-${selectedImage?.name || "image.jpg"}`
-    document.body.appendChild(link)
+    link.download = `resized-image.${format}`
+    link.href = processedImage
     link.click()
-    document.body.removeChild(link)
-  }, [processedUrl, selectedImage])
+  }, [processedImage, format])
 
   const resetImage = useCallback(() => {
-    setSelectedImage(null)
-    setPreviewUrl("")
-    setProcessedUrl("")
-    setDimensions({ width: 0, height: 0 })
-    setNewDimensions({ width: 0, height: 0 })
+    setOriginalImage(null)
+    setProcessedImage(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
   }, [])
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Crop className="h-5 w-5" />
+          <Palette className="h-5 w-5" />
           Image Resizer
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* File Upload */}
         <div className="space-y-2">
-          <Label htmlFor="image-upload">Select Image</Label>
+          <Label htmlFor="image-upload">Upload Image</Label>
           <div className="flex gap-2">
             <Input
               id="image-upload"
-              ref={fileInputRef}
               type="file"
               accept="image/*"
-              onChange={handleFileSelect}
+              onChange={handleFileUpload}
+              ref={fileInputRef}
               className="flex-1"
             />
             <Button onClick={() => fileInputRef.current?.click()} variant="outline">
@@ -149,91 +132,106 @@ const ImageResizer = ({ onImageProcessed, maxWidth = 1200, maxHeight = 800, qual
           </div>
         </div>
 
-        {/* Image Preview */}
-        {previewUrl && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Original Image</Label>
-                <div className="border rounded-lg p-2 bg-muted/50">
-                  <img
-                    src={previewUrl || "/placeholder.svg"}
-                    alt="Original"
-                    className="w-full h-auto max-h-48 object-contain rounded"
-                  />
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {dimensions.width} × {dimensions.height}
-                  </p>
-                </div>
-              </div>
-
-              {processedUrl && (
-                <div>
-                  <Label>Resized Image</Label>
-                  <div className="border rounded-lg p-2 bg-muted/50">
-                    <img
-                      src={processedUrl || "/placeholder.svg"}
-                      alt="Resized"
-                      className="w-full h-auto max-h-48 object-contain rounded"
-                    />
-                    <p className="text-sm text-muted-foreground mt-2">Optimized for web</p>
-                  </div>
-                </div>
-              )}
+        {/* Settings */}
+        {originalImage && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="width">Width (px)</Label>
+              <Input
+                id="width"
+                type="number"
+                value={dimensions.width}
+                onChange={(e) => setDimensions((prev) => ({ ...prev, width: Number.parseInt(e.target.value) || 0 }))}
+                min="1"
+                max="4000"
+              />
             </div>
-
-            {/* Dimension Controls */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="width">Width (px)</Label>
-                <Input
-                  id="width"
-                  type="number"
-                  value={newDimensions.width}
-                  onChange={(e) =>
-                    setNewDimensions((prev) => ({
-                      ...prev,
-                      width: Number.parseInt(e.target.value) || 0,
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="height">Height (px)</Label>
-                <Input
-                  id="height"
-                  type="number"
-                  value={newDimensions.height}
-                  onChange={(e) =>
-                    setNewDimensions((prev) => ({
-                      ...prev,
-                      height: Number.parseInt(e.target.value) || 0,
-                    }))
-                  }
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="height">Height (px)</Label>
+              <Input
+                id="height"
+                type="number"
+                value={dimensions.height}
+                onChange={(e) => setDimensions((prev) => ({ ...prev, height: Number.parseInt(e.target.value) || 0 }))}
+                min="1"
+                max="4000"
+              />
             </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2 flex-wrap">
-              <Button onClick={resizeImage} disabled={isProcessing} className="flex-1">
-                <RotateCw className={`h-4 w-4 mr-2 ${isProcessing ? "animate-spin" : ""}`} />
-                {isProcessing ? "Processing..." : "Resize Image"}
-              </Button>
-
-              {processedUrl && (
-                <Button onClick={downloadImage} variant="outline">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
-              )}
-
-              <Button onClick={resetImage} variant="outline">
-                Reset
-              </Button>
+            <div className="space-y-2">
+              <Label htmlFor="quality">Quality</Label>
+              <Input
+                id="quality"
+                type="range"
+                min="0.1"
+                max="1"
+                step="0.1"
+                value={quality}
+                onChange={(e) => setQuality(Number.parseFloat(e.target.value))}
+              />
+              <div className="text-sm text-muted-foreground">{Math.round(quality * 100)}%</div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="format">Format</Label>
+              <Select value={format} onValueChange={setFormat}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="jpeg">JPEG</SelectItem>
+                  <SelectItem value="png">PNG</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}
+
+        {/* Action Buttons */}
+        {originalImage && (
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={processImage} disabled={isProcessing}>
+              <Crop className="h-4 w-4 mr-2" />
+              {isProcessing ? "Processing..." : "Resize Image"}
+            </Button>
+            {processedImage && (
+              <Button onClick={downloadImage} variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+            )}
+            <Button onClick={resetImage} variant="outline">
+              <RotateCw className="h-4 w-4 mr-2" />
+              Reset
+            </Button>
+          </div>
+        )}
+
+        {/* Image Preview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {originalImage && (
+            <div className="space-y-2">
+              <Label>Original Image</Label>
+              <div className="border rounded-lg overflow-hidden">
+                <img
+                  src={originalImage || "/placeholder.svg"}
+                  alt="Original"
+                  className="w-full h-auto max-h-64 object-contain"
+                />
+              </div>
+            </div>
+          )}
+          {processedImage && (
+            <div className="space-y-2">
+              <Label>Resized Image</Label>
+              <div className="border rounded-lg overflow-hidden">
+                <img
+                  src={processedImage || "/placeholder.svg"}
+                  alt="Processed"
+                  className="w-full h-auto max-h-64 object-contain"
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Hidden Canvas */}
         <canvas ref={canvasRef} className="hidden" />
@@ -242,4 +240,4 @@ const ImageResizer = ({ onImageProcessed, maxWidth = 1200, maxHeight = 800, qual
   )
 }
 
-export default ImageResizer
+export const ImageResizer = ImageResizerDemo
