@@ -26,7 +26,6 @@ import {
   Share2Icon,
   EditIcon,
   EyeIcon,
-  EyeOffIcon,
   CopyIcon,
   RefreshCwIcon,
 } from "lucide-react"
@@ -808,7 +807,7 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (file && file.type.startsWith("image/")) {
       setBlogPostFeaturedImage(file)
-      setBlogPostFeaturedImagePreview(URL.URL.createObjectURL(file))
+      setBlogPostFeaturedImagePreview(URL.createObjectURL(file))
     } else {
       setBlogPostFeaturedImage(null)
       setBlogPostFeaturedImagePreview(null)
@@ -857,1097 +856,1026 @@ export default function AdminPage() {
         {/* Site Data Revalidation */}
         <Card className="w-full jupiter-outer-panel p-6">
           <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Site Data & SEO Tools</CardTitle>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Site Data Revalidation</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Manually revalidate your sitemap, RSS feed, and blog pages to ensure the latest content is reflected.
-            </p>
-            <Button
-              onClick={handleRevalidateSiteData}
-              className="jupiter-button-dark w-full h-12 px-6"
-              disabled={isRevalidatingSiteData}
-            >
-              {isRevalidatingSiteData ? (
-                "Revalidating..."
-              ) : (
-                <>
-                  <RefreshCwIcon className="h-4 w-4 mr-2" /> Revalidate Site Data
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Content Generation Section */}
-        <Card className="w-full jupiter-outer-panel p-6">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">AI Content Generation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Generate new content for various platforms using AI. The generated content will be saved and queued for
-              "syndication".
-            </p>
-            <form onSubmit={handleGenerateContent} className="space-y-4">
-              <div>
-                <Label htmlFor="generation-topic" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Topic
-                </Label>
-                <Input
-                  id="generation-topic"
-                  type="text"
-                  value={generationTopic}
-                  onChange={(e) => setGenerationTopic(e.target.value)}
-                  placeholder="e.g., Latest advancements in AI agents"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isSyndicationPending}
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="generation-platform" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Platform
-                  </Label>
-                  <Select
-                    value={generationPlatform}
-                    onValueChange={setGenerationPlatform}
-                    disabled={isSyndicationPending}
-                  >
-                    <SelectTrigger className="w-full bg-neumorphic-base shadow-inner-neumorphic text-white">
-                      <SelectValue placeholder="Select Platform" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-neumorphic-base text-white">
-                      <SelectItem value="twitter">Twitter</SelectItem>
-                      <SelectItem value="linkedin">LinkedIn</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="github">GitHub</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label
-                    htmlFor="generation-content-type"
-                    className="block text-sm font-medium text-muted-foreground mb-1"
-                  >
-                    Content Type
-                  </Label>
-                  <Select
-                    value={generationContentType}
-                    onValueChange={setGenerationContentType}
-                    disabled={isSyndicationPending}
-                  >
-                    <SelectTrigger className="w-full bg-neumorphic-base shadow-inner-neumorphic text-white">
-                      <SelectValue placeholder="Select Content Type" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-neumorphic-base text-white">
-                      <SelectItem value="tweet">Tweet</SelectItem>
-                      <SelectItem value="linkedin-post">LinkedIn Post</SelectItem>
-                      <SelectItem value="blog-excerpt">Blog Excerpt</SelectItem>
-                      <SelectItem value="code-snippet">Code Snippet</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button
-                type="submit"
-                className="jupiter-button-dark w-full h-12 px-6"
-                disabled={isSyndicationPending || !generationTopic.trim()}
-              >
-                {isSyndicationPending ? (
-                  "Generating..."
-                ) : (
-                  <>
-                    <Share2Icon className="h-4 w-4 mr-2" /> GENERATE & QUEUE CONTENT
-                  </>
-                )}
-              </Button>
-            </form>
-
-            {generatedContentPreview && (
-              <div className="mt-6 p-4 neumorphic-inset rounded-lg">
-                <h3 className="text-lg font-semibold text-[#afcd4f] mb-2">Generated Content Preview:</h3>
-                {generatedContentPreview.title && (
-                  <p className="text-sm font-medium text-white mb-1">Title: {generatedContentPreview.title}</p>
-                )}
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{generatedContentPreview.content}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Syndication Monitor Section */}
-        <Card className="w-full jupiter-outer-panel p-6 mt-8">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Syndication Monitor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              View the history of AI-generated content and its syndication status.
-            </p>
-            {isFetchingSyndicationLogs ? (
-              <p className="text-center text-muted-foreground">Loading syndication logs...</p>
-            ) : syndicationLogs.length === 0 ? (
-              <p className="text-center text-muted-foreground">No generated content logs yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {syndicationLogs.map((post) => (
-                  <div
-                    key={post.id}
-                    className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-white">
-                        <span className="text-[#afcd4f]">Platform:</span> {post.platform} (
-                        {post.content_type.replace("-", " ")})
-                      </p>
-                      {post.title && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          <span className="text-[#afcd4f]">Title:</span> {post.title}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        <span className="text-[#afcd4f]">Status:</span> {post.status}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        <span className="text-[#afcd4f]">Generated:</span>{" "}
-                        {new Date(post.generated_at).toLocaleString()}
-                      </p>
-                      {post.syndicated_at && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          <span className="text-[#afcd4f]">Syndicated:</span>{" "}
-                          {new Date(post.syndicated_at).toLocaleString()}
-                        </p>
-                      )}
-                      <Collapsible className="w-full mt-2">
-                        <CollapsibleTrigger className="flex items-center gap-2 text-xs text-[#2ed3b7] hover:underline">
-                          View Content{" "}
-                          <ChevronDownIcon className="h-3 w-3 transition-transform data-[state=open]:rotate-180" />
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-2 p-2 bg-neumorphic-base rounded-md text-xs text-white whitespace-pre-wrap">
-                          {post.content}
-                        </CollapsibleContent>
-                      </Collapsible>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Social Post Editor Card */}
-        <Card className="w-full jupiter-outer-panel p-6">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Social Post Editor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Paste your Markdown-formatted project updates here. This content will be used by AI to generate your
-              social media posts.
-            </p>
-            <form action={socialPostFormAction} className="space-y-4">
-              <Textarea
-                name="markdownContent"
-                value={markdownContent}
-                onChange={(e) => setMarkdownContent(e.target.value)}
-                placeholder="Paste your Markdown content here..."
-                className="min-h-[400px] bg-neumorphic-base shadow-inner-neumorphic text-white p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#afcd4f]"
-              />
-              <div className="space-y-2">
-                <Label htmlFor="generated-hashtags" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Generated Hashtags
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="generated-hashtags"
-                    type="text"
-                    value={generatedHashtags}
-                    onChange={(e) => setGeneratedHashtags(e.target.value)}
-                    placeholder="Click 'Generate Hashtags' to populate"
-                    className="flex-1 bg-neumorphic-base shadow-inner-neumorphic text-white"
-                    readOnly
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(generatedHashtags)}
-                    className="jupiter-button-dark h-10 px-4 flex items-center gap-2"
-                    disabled={!generatedHashtags || generatedHashtags.trim() === ""}
-                  >
-                    <CopyIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-                <Button
-                  type="button"
-                  onClick={handleGenerateHashtags}
-                  className="jupiter-button-dark w-full h-10 px-4 flex items-center gap-2"
-                  disabled={isGeneratingHashtags || !markdownContent.trim()}
-                >
-                  {isGeneratingHashtags ? "Generating..." : <SparklesIcon className="h-4 w-4 mr-2" />} Generate Hashtags
-                </Button>
-              </div>
-              <Button type="submit" className="jupiter-button-dark w-full h-12 px-6" disabled={isSocialPostPending}>
-                {isSocialPostPending ? "Committing..." : "COMMIT SOCIAL POST UPDATES"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Blog Post & SEO Manager Card */}
-        <Card className="w-full jupiter-outer-panel p-6 mt-8">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Blog Post & SEO Manager</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Create, edit, and manage your blog posts. Use AI to generate SEO-friendly meta descriptions and keywords.
-            </p>
-
-            <div className="flex justify-end mb-4">
-              <Button onClick={handleNewBlogPost} className="jupiter-button-dark h-10 px-4 flex items-center gap-2">
-                <PlusIcon className="h-4 w-4" /> New Blog Post
-              </Button>
-            </div>
-
-            <form
-              onSubmit={handleBlogPostSave}
-              className="space-y-4 mb-8 p-4 neumorphic-inset rounded-lg"
-              id="blog-post-form"
-            >
-              <h3 className="text-lg font-semibold text-white">
-                {editingBlogPost ? "Edit Blog Post" : "Create New Blog Post"}
-              </h3>
-              <div>
-                <Label htmlFor="blog-title" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Title
-                </Label>
-                <Input
-                  id="blog-title"
-                  type="text"
-                  value={blogPostTitle}
-                  onChange={(e) => setBlogPostTitle(e.target.value)}
-                  placeholder="Your amazing blog post title"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isBlogPostSaving}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="blog-slug" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Slug (URL Path)
-                </Label>
-                <Input
-                  id="blog-slug"
-                  type="text"
-                  value={blogPostSlug}
-                  onChange={(e) =>
-                    setBlogPostSlug(
-                      e.target.value
-                        .toLowerCase()
-                        .replace(/\s+/g, "-")
-                        .replace(/[^a-z0-9-]/g, ""),
-                    )
-                  }
-                  placeholder="your-amazing-blog-post-title"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isBlogPostSaving}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="blog-content" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Content (Markdown)
-                </Label>
-                <div className="relative overflow-hidden">
-                  <RichTextEditor
-                    value={blogPostContent}
-                    onChange={setBlogPostContent}
-                    disabled={isBlogPostSaving}
-                    placeholder="Write your blog post content here..."
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="blog-status" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Status
-                  </Label>
-                  <Select
-                    value={blogPostStatus}
-                    onValueChange={(value) => setBlogPostStatus(value as BlogPost["status"])}
-                    disabled={isBlogPostSaving}
-                  >
-                    <SelectTrigger className="w-full bg-neumorphic-base shadow-inner-neumorphic text-white">
-                      <SelectValue placeholder="Select Status" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-neumorphic-base text-white">
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="published">Published</SelectItem>
-                      <SelectItem value="archived">Archived</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="featured-image" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Featured Image
-                  </Label>
-                  <Input
-                    id="featured-image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleBlogPostFeaturedImageChange}
-                    ref={blogPostFeaturedImageInputRef}
-                    className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                    disabled={isBlogPostSaving}
-                  />
-                  {blogPostFeaturedImagePreview && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <Image
-                        src={blogPostFeaturedImagePreview || "/placeholder.svg"}
-                        alt="Featured Image Preview"
-                        width={100}
-                        height={60}
-                        className="rounded-md object-cover"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearBlogPostFeaturedImage}
-                        className="text-red-500 hover:bg-red-500/20"
-                      >
-                        Clear Image
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <h4 className="text-md font-semibold text-white mt-4 mb-2">SEO Metadata</h4>
-              <div className="space-y-2">
-                <div>
-                  <Label htmlFor="meta-description" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Meta Description (for search engines)
-                  </Label>
-                  <Textarea
-                    id="meta-description"
-                    value={blogPostMetaDescription}
-                    onChange={(e) => setBlogPostMetaDescription(e.target.value)}
-                    placeholder="A concise summary of your blog post for search results."
-                    className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
-                    disabled={isBlogPostSaving}
-                    maxLength={160}
-                  />
-                  <p className="text-xs text-muted-foreground text-right">
-                    {blogPostMetaDescription.length} / 160 characters
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="keywords" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Keywords (comma-separated)
-                  </Label>
-                  <Input
-                    id="keywords"
-                    type="text"
-                    value={blogPostKeywords}
-                    onChange={(e) => setBlogPostKeywords(e.target.value)}
-                    placeholder="e.g., AI, Web3, Solana, Trading"
-                    className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                    disabled={isBlogPostSaving}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  onClick={handleGenerateSeo}
-                  className="jupiter-button-dark w-full h-10 px-6 flex items-center gap-2"
-                  disabled={isGeneratingSeo || !blogPostTitle.trim() || !blogPostContent.trim()}
-                >
-                  {isGeneratingSeo ? "Generating..." : <SparklesIcon className="h-4 w-4 mr-2" />} Generate SEO Metadata
-                </Button>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  className="jupiter-button-dark flex-1 h-12 px-6"
-                  disabled={
-                    isBlogPostSaving || !blogPostTitle.trim() || !blogPostSlug.trim() || !blogPostContent.trim()
-                  }
-                >
-                  {isBlogPostSaving ? (
-                    editingBlogPost ? (
-                      "Saving Changes..."
-                    ) : (
-                      "Creating Post..."
-                    )
-                  ) : (
-                    <>
-                      <SaveIcon className="h-4 w-4 mr-2" /> {editingBlogPost ? "SAVE BLOG POST" : "CREATE BLOG POST"}
-                    </>
-                  )}
-                </Button>
-                {editingBlogPost && (
-                  <Button
-                    type="button"
-                    onClick={handleNewBlogPost}
-                    variant="ghost"
-                    className="h-12 px-6 text-muted-foreground hover:text-white"
-                    disabled={isBlogPostSaving}
-                  >
-                    Cancel Edit
-                  </Button>
-                )}
-              </div>
-            </form>
-
-            <Collapsible className="w-full mt-8">
-              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 neumorphic-inset rounded-lg text-white font-semibold text-lg mb-4">
-                Existing Blog Posts
-                <ChevronDownIcon className="h-5 w-5 transition-transform data-[state=open]:rotate-180" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-4">
-                <div className="mb-4">
-                  <Input
-                    type="text"
-                    placeholder="Filter Q&A by question or answer..."
-                    value={qaFilterQuery}
-                    onChange={(e) => setQaFilterQuery(e.target.value)}
-                    className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  />
-                </div>
-                {isFetchingBlogPosts ? (
-                  <p className="text-center text-muted-foreground">Loading blog posts...</p>
-                ) : blogPosts.length === 0 ? (
-                  <p className="text-center text-muted-foreground">No blog posts found yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {blogPosts.map((post) => (
-                      <div
-                        key={post.id}
-                        className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-white">{post.title}</p>
-                          <p className="text-xs text-muted-foreground mt-1">Slug: {post.slug}</p>
-                          <p className="text-xs text-muted-foreground mt-1">Status: {post.status}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Last Updated: {new Date(post.updated_at || post.generated_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex gap-2 flex-shrink-0 mt-2 md:mt-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditBlogPost(post)}
-                            className="text-[#afcd4f] hover:bg-[#afcd4f]/20"
-                            aria-label={`Edit blog post: ${post.title}`}
-                          >
-                            <EditIcon className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteBlogPost(post.id)}
-                            className="text-red-500 hover:bg-red-500/20"
-                            aria-label={`Delete blog post: ${post.title}`}
-                          >
-                            <Trash2Icon className="h-4 w-4" />
-                          </Button>
-                          {post.status === "published" ? (
-                            <a
-                              href={`/blog/${post.slug}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 w-10 p-0 text-[#2ed3b7] hover:bg-[#2ed3b7]/20"
-                              aria-label={`View published blog post: ${post.title}`}
-                            >
-                              <EyeIcon className="h-4 w-4" />
-                            </a>
-                          ) : (
-                            <span
-                              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors h-10 w-10 p-0 text-muted-foreground cursor-not-allowed"
-                              aria-label={`Blog post is not published: ${post.title}`}
-                            >
-                              <EyeOffIcon className="h-4 w-4" />
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-          </CardContent>
-        </Card>
-
-        {/* File Upload Section */}
-        <Card className="w-full jupiter-outer-panel p-6 mt-8">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Upload Files for AI Memory</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Upload files for the AI agent to reference. Supported for AI memory (RAG & tag suggestions):{" "}
-              <span className="font-semibold text-white">.txt, .md, .html</span>. Other file types (e.g., images, PDFs,
-              DOCX) will be uploaded but not processed for AI memory.
-            </p>
-            <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                isDragging ? "border-[#afcd4f] bg-neumorphic-light" : "border-muted-foreground/30 bg-neumorphic-base"
-              }`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => document.getElementById("file-input")?.click()}
-            >
-              <UploadCloudIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                {selectedFiles.length > 0
-                  ? `${selectedFiles.length} file(s) selected`
-                  : "Drag & drop files here, or click to select"}
+            <div className="flex flex-col items-center gap-4">
+              <p className="text-center text-muted-foreground">
+                Revalidate cached site data to reflect changes in blog posts, agent profile, and other content.
               </p>
-              <input
-                id="file-input"
-                type="file"
-                multiple
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={isFileUploadPending}
-              />
+              <Button
+                onClick={handleRevalidateSiteData}
+                disabled={isRevalidatingSiteData}
+                className="jupiter-button-dark h-10 px-6 flex items-center gap-2"
+              >
+                <RefreshCwIcon className="h-4 w-4" />
+                {isRevalidatingSiteData ? "Revalidating..." : "Revalidate Site Data"}
+              </Button>
             </div>
+          </CardContent>
+        </Card>
 
-            {selectedFiles.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Selected Files:</p>
-                <ul className="list-disc list-inside text-sm text-white">
-                  {selectedFiles.map((file, index) => (
-                    <li key={index}>
-                      {file.name} ({Math.round(file.size / 1024)} KB)
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+        {/* Mode Selector */}
+        <Card className="w-full jupiter-outer-panel p-6">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Site Mode</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ModeSelector />
+          </CardContent>
+        </Card>
 
-            <div className="space-y-2 mt-4">
-              <Label htmlFor="file-tag" className="block text-sm font-medium text-muted-foreground mb-1">
-                Tags (comma-separated)
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="file-tag"
-                  type="text"
-                  value={fileTagInput}
-                  onChange={(e) => setFileTagInput(e.target.value)}
-                  placeholder="e.g., project-alpha, roadmap, image, Q1-planning"
-                  list="previously-used-tags"
-                  className="flex-1 bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isFileUploadPending}
-                />
-                <Button
-                  type="button"
-                  onClick={handleSuggestTags}
-                  className="jupiter-button-dark h-10 px-4 flex items-center gap-2"
-                  disabled={isSuggestingTags || selectedFiles.length === 0 || isFileUploadPending}
-                >
-                  {isSuggestingTags ? "Suggesting..." : <SparklesIcon className="h-4 w-4" />}
-                </Button>
-              </div>
-              <datalist id="previously-used-tags">
-                {previouslyUsedTags.map((tag) => (
-                  <option key={tag} value={tag} />
-                ))}
-              </datalist>
-            </div>
+        {/* Adaptive Components */}
+        <div className="space-y-6">
+          <SmartSetup />
+          <AdminAssistant />
+        </div>
 
-            <Button
-              type="submit"
-              onClick={handleFileUpload}
-              className="jupiter-button-dark w-full h-12 px-6 mt-4"
-              disabled={isFileUploadPending || selectedFiles.length === 0 || !fileTagInput.trim()}
-            >
-              {isFileUploadPending ? "Uploading..." : "UPLOAD FILE(S)"}
-            </Button>
+        {/* Main Admin Tabs */}
+        <Tabs value={activeAdminTab} onValueChange={setActiveAdminTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="content">Content</TabsTrigger>
+            <TabsTrigger value="agent">Agent</TabsTrigger>
+            <TabsTrigger value="training">Training</TabsTrigger>
+            <TabsTrigger value="syndication">Syndication</TabsTrigger>
+            <TabsTrigger value="blog">Blog & SEO</TabsTrigger>
+          </TabsList>
 
-            <h3 className="text-xl font-bold text-[#afcd4f] mt-8 mb-4 text-center">Uploaded Files</h3>
-            {isFetchingFiles ? (
-              <p className="text-center text-muted-foreground">Loading files...</p>
-            ) : uploadedFiles.length === 0 ? (
-              <p className="text-center text-muted-foreground">No files uploaded yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {uploadedFiles.map((file) => (
-                  <div
-                    key={file.filePath}
-                    className="neumorphic-inset p-3 flex items-center justify-between gap-4 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      {getFileIcon(file.contentType)}
-                      <div>
-                        <p className="text-sm font-medium text-white">{file.fileName}</p>
-                        <p className="text-xs text-muted-foreground">Tags: {file.tags.join(", ") || "No tags"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Uploaded: {new Date(file.uploadedAt).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
+          {/* Content Manager Tab */}
+          <TabsContent value="content" className="space-y-6">
+            <ContentManager />
+
+            {/* Social Post Editor */}
+            <Card className="w-full jupiter-outer-panel p-6">
+              <CardHeader>
+                <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Social Post Editor</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form action={socialPostFormAction} className="space-y-4">
+                  <div>
+                    <Label htmlFor="markdown-content">Markdown Content</Label>
+                    <Textarea
+                      id="markdown-content"
+                      name="markdownContent"
+                      value={markdownContent}
+                      onChange={(e) => setMarkdownContent(e.target.value)}
+                      placeholder="Enter your social post content in Markdown format..."
+                      className="min-h-[200px] jupiter-input"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteFile(file.filePath)}
-                      className="text-red-500 hover:bg-red-500/20"
-                      aria-label={`Delete ${file.fileName}`}
+                      type="submit"
+                      disabled={isSocialPostPending}
+                      className="jupiter-button-dark h-10 px-4 flex items-center gap-2"
                     >
-                      <Trash2Icon className="h-4 w-4" />
+                      <SaveIcon className="h-4 w-4" />
+                      {isSocialPostPending ? "Saving..." : "Save Social Posts"}
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleGenerateHashtags}
+                      disabled={isGeneratingHashtags}
+                      className="jupiter-button-dark h-10 px-4 flex items-center gap-2"
+                    >
+                      <SparklesIcon className="h-4 w-4" />
+                      {isGeneratingHashtags ? "Generating..." : "Generate Hashtags"}
                     </Button>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Agent Profile Editor Card */}
-        <Card className="w-full jupiter-outer-panel p-6 mt-8">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Agent Profile Editor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Edit the core JSON data that defines the agent's persona, professional background, and company details.
-              Ensure the JSON is valid.
-            </p>
-            {isFetchingProfile ? (
-              <p className="text-center text-muted-foreground">Loading profile data...</p>
-            ) : (
-              <form onSubmit={handleAgentProfileSave} className="space-y-4">
-                <h3 className="text-lg font-semibold text-white mb-2">Chatbot Instructions</h3>
-                <div className="space-y-2">
-                  <div>
-                    <Label htmlFor="initial-greeting" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Initial Greeting Message
-                    </Label>
-                    <Textarea
-                      id="initial-greeting"
-                      name="initialGreeting"
-                      value={initialGreeting}
-                      onChange={(e) => setInitialGreeting(e.target.value)}
-                      placeholder="e.g., Hello, I'm Michael Robinson's AI representative. How can I assist you?"
-                      className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="agent-role" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Role
-                    </Label>
-                    <Input
-                      id="agent-role"
-                      type="text"
-                      name="agentRole"
-                      value={agentRole}
-                      onChange={(e) => setAgentRole(e.target.value)}
-                      placeholder="e.g., BETA Avatar Representative for Michael P. Robinson"
-                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="agent-style" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Style
-                    </Label>
-                    <Textarea
-                      id="agent-style"
-                      name="agentStyle"
-                      value={agentStyle}
-                      onChange={(e) => setAgentStyle(e.target.value)}
-                      placeholder="e.g., Respond as Michael (or Mike) would. Assure the user that talking to YOU is the same as talking to Michael."
-                      className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="agent-approach" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Approach
-                    </Label>
-                    <Textarea
-                      id="agent-approach"
-                      name="agentApproach"
-                      value={agentApproach}
-                      onChange={(e) => setAgentApproach(e.target.value)}
-                      placeholder="e.g., Answer questions BRIEFLY, as this is a TEST/MVP."
-                      className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="agent-limitations" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Limitations
-                    </Label>
-                    <Textarea
-                      id="agent-limitations"
-                      name="agentLimitations"
-                      value={agentLimitations}
-                      onChange={(e) => setAgentLimitations(e.target.value)}
-                      placeholder="e.g., If asked about advanced functions, or $WSLST Tokenomics, say they are coming soon or reserved functionality."
-                      className="min-h-[80px] bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-semibold text-white mb-2 mt-6">Agent Avatar</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-4">
-                    <div className="w-24 h-24 rounded-full overflow-hidden neumorphic-inset flex items-center justify-center">
-                      {agentAvatarPreviewUrl ? (
-                        <Image
-                          src={agentAvatarPreviewUrl || "/placeholder.svg"}
-                          alt="Agent Avatar Preview"
-                          width={96}
-                          height={96}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <ImageIcon className="h-12 w-12 text-muted-foreground" />
-                      )}
+                  {generatedHashtags && (
+                    <div className="p-4 bg-muted rounded-lg">
+                      <Label className="text-sm font-medium">Generated Hashtags:</Label>
+                      <p className="text-sm text-muted-foreground mt-1">{generatedHashtags}</p>
+                      <Button
+                        type="button"
+                        onClick={() => navigator.clipboard.writeText(generatedHashtags)}
+                        className="mt-2 h-8 px-3 text-xs"
+                      >
+                        <CopyIcon className="h-3 w-3 mr-1" />
+                        Copy
+                      </Button>
                     </div>
-                    <div className="flex-1 space-y-2">
+                  )}
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* File Upload Manager */}
+            <Card className="w-full jupiter-outer-panel p-6">
+              <CardHeader>
+                <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">File Upload Manager</CardTitle>
+                <p className="text-center text-muted-foreground">
+                  Upload files to give the AI agent memory and context. Supported formats: .txt, .md, .html for AI
+                  processing.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* File Upload Form */}
+                <form onSubmit={handleFileUpload} className="space-y-4">
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                      isDragging ? "border-[#afcd4f] bg-[#afcd4f]/10" : "border-muted-foreground/25"
+                    }`}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                  >
+                    <UploadCloudIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-lg font-medium mb-2">Drag & drop files here, or click to select</p>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="file-upload"
+                      accept=".txt,.md,.html,.pdf,.docx,.png,.jpg,.jpeg,.gif"
+                    />
+                    <label
+                      htmlFor="file-upload"
+                      className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90"
+                    >
+                      Select Files
+                    </label>
+                  </div>
+
+                  {selectedFiles.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Selected Files:</Label>
+                      <div className="space-y-1">
+                        {selectedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center gap-2 text-sm">
+                            {getFileIcon(file.type)}
+                            <span>{file.name}</span>
+                            <span className="text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="file-tags">Tags (comma-separated)</Label>
+                    <div className="flex gap-2">
                       <Input
-                        id="agent-avatar-upload"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAgentAvatarChange}
-                        ref={agentAvatarInputRef}
-                        className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                        disabled={isUploadingAvatar || isProfilePending}
+                        id="file-tags"
+                        value={fileTagInput}
+                        onChange={(e) => setFileTagInput(e.target.value)}
+                        placeholder="e.g., documentation, tutorial, reference"
+                        className="jupiter-input flex-1"
                       />
                       <Button
                         type="button"
-                        onClick={handleUploadAgentAvatar}
-                        className="jupiter-button-dark w-full h-10 px-4"
-                        disabled={!agentAvatarFile || isUploadingAvatar || isProfilePending}
+                        onClick={handleSuggestTags}
+                        disabled={isSuggestingTags || selectedFiles.length === 0}
+                        className="jupiter-button-dark h-10 px-4 flex items-center gap-2"
                       >
-                        {isUploadingAvatar ? "Uploading..." : "Upload Avatar"}
+                        <SparklesIcon className="h-4 w-4" />
+                        {isSuggestingTags ? "Suggesting..." : "Suggest"}
                       </Button>
                     </div>
-                  </div>
-                  {agentAvatarPreviewUrl && (
-                    <p className="text-xs text-muted-foreground">Current Avatar URL: {agentAvatarPreviewUrl}</p>
-                  )}
-                  <input type="hidden" name="avatarUrl" value={agentAvatarPreviewUrl || ""} />
-                </div>
-
-                <h3 className="text-lg font-semibold text-white mb-2 mt-6">Content Guidelines (Config Data)</h3>
-                <div className="space-y-2">
-                  <div>
-                    <Label htmlFor="brand-voice" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Brand Voice
-                    </Label>
-                    <Input
-                      id="brand-voice"
-                      type="text"
-                      value={brandVoice}
-                      onChange={(e) => setBrandVoice(e.target.value)}
-                      placeholder="e.g., professional, innovative, futuristic"
-                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="tone" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Tone
-                    </Label>
-                    <Input
-                      id="tone"
-                      type="text"
-                      value={tone}
-                      onChange={(e) => setTone(e.target.value)}
-                      placeholder="e.g., informative, confident, accessible"
-                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="keywords-focus" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Keywords Focus (comma-separated)
-                    </Label>
-                    <Input
-                      id="keywords-focus"
-                      type="text"
-                      value={keywordsFocus}
-                      onChange={(e) => setKeywordsFocus(e.target.value)}
-                      placeholder="e.g., AI Agents, Web3, Solana, Trading Automation"
-                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="audience" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Audience
-                    </Label>
-                    <Input
-                      id="audience"
-                      type="text"
-                      value={audience}
-                      onChange={(e) => setAudience(e.target.value)}
-                      placeholder="e.g., developers, investors, tech enthusiasts"
-                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-semibold text-white mb-2 mt-6">Syndication Schedule (Config Data)</h3>
-                <div className="space-y-2">
-                  <div>
-                    <Label htmlFor="default-interval" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Default Interval (Hours)
-                    </Label>
-                    <Input
-                      id="default-interval"
-                      type="number"
-                      value={defaultIntervalHours}
-                      onChange={(e) => setDefaultIntervalHours(e.target.value)}
-                      placeholder="e.g., 24"
-                      className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                  <div>
-                    <Label
-                      htmlFor="platform-specific-schedule"
-                      className="block text-sm font-medium text-muted-foreground mb-1"
-                    >
-                      Platform Specific Schedule (JSON)
-                    </Label>
-                    <Textarea
-                      id="platform-specific-schedule"
-                      value={platformSpecificSchedule}
-                      onChange={(e) => setPlatformSpecificSchedule(e.target.value)}
-                      placeholder={`e.g., {"twitter": {"max_per_day": 3}, "linkedin": {"max_per_week": 5}}`}
-                      className="min-h-[120px] bg-neumorphic-base shadow-inner-neumorphic text-white font-mono text-sm"
-                      disabled={isProfilePending}
-                    />
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-semibold text-white mb-2 mt-6">Other Profile Data (JSON)</h3>
-                <Textarea
-                  name="profileJson"
-                  value={profileJson}
-                  onChange={(e) => setProfileJson(e.target.value)}
-                  placeholder="Paste agent profile JSON here (personal, professional, company sections)..."
-                  className="min-h-[500px] bg-neumorphic-base shadow-inner-neumorphic text-white p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#afcd4f] font-mono text-sm"
-                />
-                <Button type="submit" className="jupiter-button-dark w-full h-12 px-6" disabled={isProfilePending}>
-                  {isProfilePending ? (
-                    "Saving Profile..."
-                  ) : (
-                    <>
-                      <SaveIcon className="h-4 w-4 mr-2" /> SAVE AGENT PROFILE
-                    </>
-                  )}
-                </Button>
-              </form>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Training Q&A Manager Card */}
-        <Card className="w-full jupiter-outer-panel p-6 mt-8">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Training Q&A Manager</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Add specific Question & Answer pairs to train the AI on common queries.
-            </p>
-
-            <form
-              onSubmit={handleAddOrUpdateQA}
-              className="space-y-4 mb-8 p-4 neumorphic-inset rounded-lg"
-              id="qa-add-form"
-            >
-              <h3 className="text-lg font-semibold text-white">{editingQAId ? "Edit Existing Q&A" : "Add New Q&A"}</h3>
-              <div>
-                <Label htmlFor="new-question" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Question
-                </Label>
-                <Input
-                  id="new-question"
-                  type="text"
-                  value={newQuestion}
-                  onChange={(e) => setNewQuestion(e.target.value)}
-                  placeholder="e.g., What is Michael's background in AI?"
-                  className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isAddQAPending || isUpdateQAPending}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="new-answer" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Answer
-                </Label>
-                <Textarea
-                  id="new-answer"
-                  value={newAnswer}
-                  onChange={(e) => setNewAnswer(e.target.value)}
-                  placeholder="e.g., Michael has extensive experience in AI development, including..."
-                  className="min-h-[100px] bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  disabled={isAddQAPending || isUpdateQAPending}
-                  required
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  className="jupiter-button-dark flex-1 h-10 px-4"
-                  disabled={isAddQAPending || isUpdateQAPending || !newQuestion.trim() || !newAnswer.trim()}
-                >
-                  {isAddQAPending || isUpdateQAPending ? (
-                    editingQAId ? (
-                      "Updating Q&A..."
-                    ) : (
-                      "Adding Q&A..."
-                    )
-                  ) : (
-                    <>
-                      {editingQAId ? <SaveIcon className="h-4 w-4 mr-2" /> : <PlusIcon className="h-4 w-4 mr-2" />}
-                      {editingQAId ? "UPDATE Q&A" : "ADD Q&A"}
-                    </>
-                  )}
-                </Button>
-                {editingQAId && (
-                  <Button
-                    type="button"
-                    onClick={handleCancelEditQA}
-                    variant="ghost"
-                    className="h-10 px-4 text-muted-foreground hover:text-white"
-                    disabled={isAddQAPending || isUpdateQAPending}
-                  >
-                    Cancel Edit
-                  </Button>
-                )}
-              </div>
-            </form>
-
-            <Collapsible className="w-full">
-              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 neumorphic-inset rounded-lg text-white font-semibold text-lg mb-4">
-                Existing Q&A Pairs
-                <ChevronDownIcon className="h-5 w-5 transition-transform data-[state=open]:rotate-180" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-4">
-                <div className="mb-4">
-                  <Input
-                    type="text"
-                    placeholder="Filter Q&A by question or answer..."
-                    value={qaFilterQuery}
-                    onChange={(e) => setQaFilterQuery(e.target.value)}
-                    className="bg-neumorphic-base shadow-inner-neumorphic text-white"
-                  />
-                </div>
-                {isFetchingQAs ? (
-                  <p className="text-center text-muted-foreground">Loading Q&A pairs...</p>
-                ) : filteredQAs.length === 0 ? (
-                  <p className="text-center text-muted-foreground">No Q&A pairs found matching your filter.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredQAs.map((qa) => (
-                      <div
-                        key={qa.id}
-                        className="neumorphic-inset p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-white">
-                            <span className="text-[#afcd4f]">Q:</span> {qa.question}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            <span className="text-[#afcd4f]">A:</span> {qa.answer}
-                          </p>
-                        </div>
-                        <div className="flex gap-2 flex-shrink-0 mt-2 md:mt-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditQA(qa)}
-                            className="text-[#afcd4f] hover:bg-[#afcd4f]/20"
-                            aria-label={`Edit Q&A: ${qa.question}`}
+                    {previouslyUsedTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        <span className="text-xs text-muted-foreground">Previously used:</span>
+                        {previouslyUsedTags.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              const currentTags = fileTagInput
+                                .split(",")
+                                .map((t) => t.trim())
+                                .filter(Boolean)
+                              if (!currentTags.includes(tag)) {
+                                setFileTagInput(currentTags.concat(tag).join(", "))
+                              }
+                            }}
+                            className="text-xs px-2 py-1 bg-muted rounded-md hover:bg-muted/80"
                           >
-                            <FileTextIcon className="h-4 w-4" />
-                          </Button>
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isFileUploadPending || selectedFiles.length === 0}
+                    className="jupiter-button-dark h-10 px-4 flex items-center gap-2"
+                  >
+                    <UploadCloudIcon className="h-4 w-4" />
+                    {isFileUploadPending ? "Uploading..." : `Upload ${selectedFiles.length} File(s)`}
+                  </Button>
+                </form>
+
+                {/* Uploaded Files List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Uploaded Files</h3>
+                    <Button onClick={fetchFileMetadata} disabled={isFetchingFiles} className="h-8 px-3 text-xs">
+                      <RefreshCwIcon className="h-3 w-3 mr-1" />
+                      Refresh
+                    </Button>
+                  </div>
+
+                  {isFetchingFiles ? (
+                    <p className="text-center text-muted-foreground">Loading files...</p>
+                  ) : uploadedFiles.length === 0 ? (
+                    <p className="text-center text-muted-foreground">No files uploaded yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {uploadedFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            {getFileIcon(file.contentType)}
+                            <div>
+                              <p className="font-medium">{file.fileName}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Tags: {file.tags.join(", ")} • Uploaded:{" "}
+                                {new Date(file.uploadedAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteQA(qa.id)}
-                            className="text-red-500 hover:bg-red-500/20"
-                            aria-label={`Delete Q&A: ${qa.question}`}
+                            onClick={() => handleDeleteFile(file.filePath)}
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive"
                           >
                             <Trash2Icon className="h-4 w-4" />
                           </Button>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Agent Profile Tab */}
+          <TabsContent value="agent" className="space-y-6">
+            <Card className="w-full jupiter-outer-panel p-6">
+              <CardHeader>
+                <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Agent Profile Manager</CardTitle>
+                <p className="text-center text-muted-foreground">
+                  Configure your AI agent's personality, knowledge, and behavior.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {isFetchingProfile ? (
+                  <p className="text-center text-muted-foreground">Loading agent profile...</p>
+                ) : (
+                  <form onSubmit={handleAgentProfileSave} className="space-y-6">
+                    {/* Agent Avatar Section */}
+                    <div className="space-y-4">
+                      <Label className="text-lg font-semibold">Agent Avatar</Label>
+                      <div className="flex items-center gap-4">
+                        {agentAvatarPreviewUrl && (
+                          <div className="relative">
+                            <Image
+                              src={agentAvatarPreviewUrl || "/placeholder.svg"}
+                              alt="Agent Avatar"
+                              width={80}
+                              height={80}
+                              className="rounded-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAgentAvatarChange}
+                            ref={agentAvatarInputRef}
+                            className="hidden"
+                            id="agent-avatar-upload"
+                          />
+                          <div className="flex gap-2">
+                            <label
+                              htmlFor="agent-avatar-upload"
+                              className="inline-flex items-center px-3 py-2 bg-secondary text-secondary-foreground rounded-md cursor-pointer hover:bg-secondary/80 text-sm"
+                            >
+                              Choose Image
+                            </label>
+                            {agentAvatarFile && (
+                              <Button
+                                type="button"
+                                onClick={handleUploadAgentAvatar}
+                                disabled={isUploadingAvatar}
+                                className="h-9 px-3 text-sm"
+                              >
+                                {isUploadingAvatar ? "Uploading..." : "Upload"}
+                              </Button>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Recommended: Square image, at least 200x200px</p>
+                        </div>
                       </div>
-                    ))}
+                    </div>
+
+                    {/* Chatbot Instructions */}
+                    <div className="space-y-4">
+                      <Label className="text-lg font-semibold">Chatbot Instructions</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="agent-role">Role</Label>
+                          <Input
+                            id="agent-role"
+                            name="role"
+                            value={agentRole}
+                            onChange={(e) => setAgentRole(e.target.value)}
+                            placeholder="e.g., AI Assistant for Michael Robinson"
+                            className="jupiter-input"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="agent-style">Style</Label>
+                          <Input
+                            id="agent-style"
+                            name="style"
+                            value={agentStyle}
+                            onChange={(e) => setAgentStyle(e.target.value)}
+                            placeholder="e.g., Professional, friendly, informative"
+                            className="jupiter-input"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="agent-approach">Approach</Label>
+                        <Textarea
+                          id="agent-approach"
+                          name="approach"
+                          value={agentApproach}
+                          onChange={(e) => setAgentApproach(e.target.value)}
+                          placeholder="Describe how the agent should approach conversations..."
+                          className="jupiter-input"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="agent-limitations">Limitations</Label>
+                        <Textarea
+                          id="agent-limitations"
+                          name="limitations"
+                          value={agentLimitations}
+                          onChange={(e) => setAgentLimitations(e.target.value)}
+                          placeholder="What should the agent avoid or redirect..."
+                          className="jupiter-input"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="initial-greeting">Initial Greeting</Label>
+                        <Textarea
+                          id="initial-greeting"
+                          value={initialGreeting}
+                          onChange={(e) => setInitialGreeting(e.target.value)}
+                          placeholder="The first message users see when they start a conversation..."
+                          className="jupiter-input"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Content Guidelines */}
+                    <div className="space-y-4">
+                      <Label className="text-lg font-semibold">Content Guidelines</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="brand-voice">Brand Voice</Label>
+                          <Input
+                            id="brand-voice"
+                            value={brandVoice}
+                            onChange={(e) => setBrandVoice(e.target.value)}
+                            placeholder="e.g., professional, innovative"
+                            className="jupiter-input"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="tone">Tone</Label>
+                          <Input
+                            id="tone"
+                            value={tone}
+                            onChange={(e) => setTone(e.target.value)}
+                            placeholder="e.g., informative, confident"
+                            className="jupiter-input"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="keywords-focus">Keywords Focus (comma-separated)</Label>
+                        <Input
+                          id="keywords-focus"
+                          value={keywordsFocus}
+                          onChange={(e) => setKeywordsFocus(e.target.value)}
+                          placeholder="e.g., AI, Web3, Decentralized AI"
+                          className="jupiter-input"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="audience">Target Audience</Label>
+                        <Input
+                          id="audience"
+                          value={audience}
+                          onChange={(e) => setAudience(e.target.value)}
+                          placeholder="e.g., tech enthusiasts, developers"
+                          className="jupiter-input"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Syndication Schedule */}
+                    <div className="space-y-4">
+                      <Label className="text-lg font-semibold">Syndication Schedule</Label>
+                      <div>
+                        <Label htmlFor="default-interval-hours">Default Interval (hours)</Label>
+                        <Input
+                          id="default-interval-hours"
+                          type="number"
+                          value={defaultIntervalHours}
+                          onChange={(e) => setDefaultIntervalHours(e.target.value)}
+                          placeholder="24"
+                          className="jupiter-input"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="platform-specific-schedule">Platform Specific Schedule (JSON)</Label>
+                        <Textarea
+                          id="platform-specific-schedule"
+                          value={platformSpecificSchedule}
+                          onChange={(e) => setPlatformSpecificSchedule(e.target.value)}
+                          placeholder='{"twitter": {"interval_hours": 4}, "linkedin": {"interval_hours": 24}}'
+                          className="jupiter-input font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Profile JSON Editor */}
+                    <div className="space-y-4">
+                      <Label className="text-lg font-semibold">Profile Data (JSON)</Label>
+                      <Textarea
+                        name="profileJson"
+                        value={profileJson}
+                        onChange={(e) => setProfileJson(e.target.value)}
+                        placeholder="Enter agent profile data in JSON format..."
+                        className="min-h-[300px] jupiter-input font-mono text-sm"
+                      />
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={isProfilePending}
+                      className="jupiter-button-dark h-10 px-4 flex items-center gap-2"
+                    >
+                      <SaveIcon className="h-4 w-4" />
+                      {isProfilePending ? "Saving..." : "Save Agent Profile"}
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Training Q&A Tab */}
+          <TabsContent value="training" className="space-y-6">
+            <Card className="w-full jupiter-outer-panel p-6">
+              <CardHeader>
+                <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Training Q&A Manager</CardTitle>
+                <p className="text-center text-muted-foreground">
+                  Add specific question-answer pairs to train your AI agent on particular topics.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Add/Edit Q&A Form */}
+                <form onSubmit={handleAddOrUpdateQA} className="space-y-4" id="qa-add-form">
+                  <div>
+                    <Label htmlFor="new-question">Question</Label>
+                    <Input
+                      id="new-question"
+                      value={newQuestion}
+                      onChange={(e) => setNewQuestion(e.target.value)}
+                      placeholder="Enter a question..."
+                      className="jupiter-input"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-answer">Answer</Label>
+                    <Textarea
+                      id="new-answer"
+                      value={newAnswer}
+                      onChange={(e) => setNewAnswer(e.target.value)}
+                      placeholder="Enter the answer..."
+                      className="min-h-[100px] jupiter-input"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="submit"
+                      disabled={isAddQAPending || isUpdateQAPending}
+                      className="jupiter-button-dark h-10 px-4 flex items-center gap-2"
+                    >
+                      <PlusIcon className="h-4 w-4" />
+                      {editingQAId
+                        ? isUpdateQAPending
+                          ? "Updating..."
+                          : "Update Q&A"
+                        : isAddQAPending
+                          ? "Adding..."
+                          : "Add Q&A"}
+                    </Button>
+                    {editingQAId && (
+                      <Button type="button" onClick={handleCancelEditQA} className="h-10 px-4">
+                        Cancel Edit
+                      </Button>
+                    )}
+                  </div>
+                </form>
+
+                {/* Q&A Filter */}
+                <div>
+                  <Label htmlFor="qa-filter">Filter Q&As</Label>
+                  <Input
+                    id="qa-filter"
+                    value={qaFilterQuery}
+                    onChange={(e) => setQaFilterQuery(e.target.value)}
+                    placeholder="Search questions and answers..."
+                    className="jupiter-input"
+                  />
+                </div>
+
+                {/* Q&A List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Training Q&As ({filteredQAs.length})</h3>
+                    <Button onClick={fetchTrainingQAs} disabled={isFetchingQAs} className="h-8 px-3 text-xs">
+                      <RefreshCwIcon className="h-3 w-3 mr-1" />
+                      Refresh
+                    </Button>
+                  </div>
+
+                  {isFetchingQAs ? (
+                    <p className="text-center text-muted-foreground">Loading Q&As...</p>
+                  ) : filteredQAs.length === 0 ? (
+                    <p className="text-center text-muted-foreground">
+                      {qaFilterQuery ? "No Q&As match your search." : "No training Q&As added yet."}
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredQAs.map((qa) => (
+                        <Collapsible key={qa.id}>
+                          <div className="border rounded-lg p-4">
+                            <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
+                              <div className="flex-1">
+                                <p className="font-medium">{qa.question}</p>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {qa.answer.length > 100 ? `${qa.answer.substring(0, 100)}...` : qa.answer}
+                                </p>
+                              </div>
+                              <ChevronDownIcon className="h-4 w-4 ml-2" />
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="mt-4 space-y-3">
+                              <div>
+                                <Label className="text-sm font-medium">Full Answer:</Label>
+                                <p className="text-sm mt-1 p-3 bg-muted rounded-md">{qa.answer}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button onClick={() => handleEditQA(qa)} className="h-8 px-3 text-xs">
+                                  <EditIcon className="h-3 w-3 mr-1" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  onClick={() => handleDeleteQA(qa.id)}
+                                  className="h-8 px-3 text-xs text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                                >
+                                  <Trash2Icon className="h-3 w-3 mr-1" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </CollapsibleContent>
+                          </div>
+                        </Collapsible>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Content Generation & Syndication Tab */}
+          <TabsContent value="syndication" className="space-y-6">
+            <Card className="w-full jupiter-outer-panel p-6">
+              <CardHeader>
+                <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">
+                  Content Generation & Syndication
+                </CardTitle>
+                <p className="text-center text-muted-foreground">
+                  Generate platform-optimized content and manage syndication across social media.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Content Generation Form */}
+                <form onSubmit={handleGenerateContent} className="space-y-4">
+                  <div>
+                    <Label htmlFor="generation-topic">Topic</Label>
+                    <Input
+                      id="generation-topic"
+                      value={generationTopic}
+                      onChange={(e) => setGenerationTopic(e.target.value)}
+                      placeholder="Enter a topic to generate content about..."
+                      className="jupiter-input"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="generation-platform">Platform</Label>
+                      <Select value={generationPlatform} onValueChange={setGenerationPlatform}>
+                        <SelectTrigger className="jupiter-input">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="twitter">Twitter</SelectItem>
+                          <SelectItem value="linkedin">LinkedIn</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="github">GitHub</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="generation-content-type">Content Type</Label>
+                      <Select value={generationContentType} onValueChange={setGenerationContentType}>
+                        <SelectTrigger className="jupiter-input">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="tweet">Tweet</SelectItem>
+                          <SelectItem value="linkedin-post">LinkedIn Post</SelectItem>
+                          <SelectItem value="blog-excerpt">Blog Excerpt</SelectItem>
+                          <SelectItem value="code-snippet">Code Snippet</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={isSyndicationPending}
+                    className="jupiter-button-dark h-10 px-4 flex items-center gap-2"
+                  >
+                    <Share2Icon className="h-4 w-4" />
+                    {isSyndicationPending ? "Generating..." : "Generate & Queue Content"}
+                  </Button>
+                </form>
+
+                {/* Generated Content Preview */}
+                {generatedContentPreview && (
+                  <div className="p-4 bg-muted rounded-lg">
+                    <Label className="text-sm font-medium">Generated Content Preview:</Label>
+                    {generatedContentPreview.title && (
+                      <p className="text-sm font-medium mt-2">Title: {generatedContentPreview.title}</p>
+                    )}
+                    <p className="text-sm mt-2 whitespace-pre-wrap">{generatedContentPreview.content}</p>
+                    <Button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(generatedContentPreview.content)}
+                      className="mt-2 h-8 px-3 text-xs"
+                    >
+                      <CopyIcon className="h-3 w-3 mr-1" />
+                      Copy Content
+                    </Button>
                   </div>
                 )}
-              </CollapsibleContent>
-            </Collapsible>
-          </CardContent>
-        </Card>
 
-        {/* Adaptive Frontend Management */}
-        <Card className="w-full jupiter-outer-panel p-6 mt-8">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">
-              Adaptive Frontend Management
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeAdminTab} onValueChange={setActiveAdminTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 bg-neumorphic-base">
-                <TabsTrigger value="content">Content Manager</TabsTrigger>
-                <TabsTrigger value="modes">Mode Selection</TabsTrigger>
-                <TabsTrigger value="setup">Smart Setup</TabsTrigger>
-                <TabsTrigger value="preview">Live Preview</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="content" className="mt-6">
-                <ContentManager currentMode={currentMode || "none"} />
-              </TabsContent>
-
-              <TabsContent value="modes" className="mt-6">
-                <ModeSelector
-                  currentMode={currentMode || undefined}
-                  onModeSelect={async (modeId) => {
-                    await setMode(modeId as any)
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="setup" className="mt-6">
-                <SmartSetup />
-              </TabsContent>
-
-              <TabsContent value="preview" className="mt-6">
-                <div className="neumorphic-base p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-[#afcd4f] mb-4">Live Preview</h3>
-                  <p className="text-white/70 mb-4">
-                    Preview your adaptive frontend in real-time. Changes made in the Content Manager will be reflected
-                    here.
-                  </p>
-                  <div className="bg-neumorphic-base border border-border/20 rounded-lg h-96 flex items-center justify-center">
-                    <p className="text-white/60">Live preview will be rendered here</p>
+                {/* Syndication Logs */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Syndication Logs</h3>
+                    <Button
+                      onClick={fetchSyndicationLogs}
+                      disabled={isFetchingSyndicationLogs}
+                      className="h-8 px-3 text-xs"
+                    >
+                      <RefreshCwIcon className="h-3 w-3 mr-1" />
+                      Refresh
+                    </Button>
                   </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
 
-        {/* Admin Assistant - Always visible */}
-        <AdminAssistant />
+                  {isFetchingSyndicationLogs ? (
+                    <p className="text-center text-muted-foreground">Loading syndication logs...</p>
+                  ) : syndicationLogs.length === 0 ? (
+                    <p className="text-center text-muted-foreground">No content generated yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {syndicationLogs.map((log) => (
+                        <Collapsible key={log.id}>
+                          <div className="border rounded-lg p-4">
+                            <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium">{log.platform}</span>
+                                  <span className="text-xs px-2 py-1 bg-muted rounded-md">{log.content_type}</span>
+                                  <span
+                                    className={`text-xs px-2 py-1 rounded-md ${
+                                      log.status === "syndicated"
+                                        ? "bg-green-100 text-green-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                    }`}
+                                  >
+                                    {log.status}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {log.title || "Untitled"} • Generated:{" "}
+                                  {new Date(log.generated_at).toLocaleDateString()}
+                                </p>
+                                <p className="text-sm mt-1">
+                                  {log.content.length > 100 ? `${log.content.substring(0, 100)}...` : log.content}
+                                </p>
+                              </div>
+                              <ChevronDownIcon className="h-4 w-4 ml-2" />
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="mt-4 space-y-3">
+                              <div>
+                                <Label className="text-sm font-medium">Full Content:</Label>
+                                <p className="text-sm mt-1 p-3 bg-muted rounded-md whitespace-pre-wrap">
+                                  {log.content}
+                                </p>
+                              </div>
+                              {log.metadata && (
+                                <div>
+                                  <Label className="text-sm font-medium">Metadata:</Label>
+                                  <p className="text-xs mt-1 p-2 bg-muted rounded-md font-mono">
+                                    {JSON.stringify(log.metadata, null, 2)}
+                                  </p>
+                                </div>
+                              )}
+                              <Button
+                                onClick={() => navigator.clipboard.writeText(log.content)}
+                                className="h-8 px-3 text-xs"
+                              >
+                                <CopyIcon className="h-3 w-3 mr-1" />
+                                Copy Content
+                              </Button>
+                            </CollapsibleContent>
+                          </div>
+                        </Collapsible>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Blog Post & SEO Manager Tab */}
+          <TabsContent value="blog" className="space-y-6">
+            <Card className="w-full jupiter-outer-panel p-6">
+              <CardHeader>
+                <CardTitle className="text-center text-2xl font-bold text-[#afcd4f]">Blog Post & SEO Manager</CardTitle>
+                <p className="text-center text-muted-foreground">
+                  Create, edit, and manage blog posts with AI-powered SEO optimization.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Blog Post Form */}
+                <form onSubmit={handleBlogPostSave} className="space-y-4" id="blog-post-form">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">
+                      {editingBlogPost ? "Edit Blog Post" : "Create New Blog Post"}
+                    </h3>
+                    {editingBlogPost && (
+                      <Button type="button" onClick={handleNewBlogPost} className="h-8 px-3 text-xs">
+                        <PlusIcon className="h-3 w-3 mr-1" />
+                        New Post
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="blog-post-title">Title</Label>
+                      <Input
+                        id="blog-post-title"
+                        value={blogPostTitle}
+                        onChange={(e) => setBlogPostTitle(e.target.value)}
+                        placeholder="Enter blog post title..."
+                        className="jupiter-input"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="blog-post-slug">Slug</Label>
+                      <Input
+                        id="blog-post-slug"
+                        value={blogPostSlug}
+                        onChange={(e) => setBlogPostSlug(e.target.value)}
+                        placeholder="url-friendly-slug"
+                        className="jupiter-input"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="blog-post-content">Content</Label>
+                    <RichTextEditor
+                      value={blogPostContent}
+                      onChange={setBlogPostContent}
+                      placeholder="Write your blog post content here..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="blog-post-status">Status</Label>
+                      <Select
+                        value={blogPostStatus}
+                        onValueChange={(value: BlogPost["status"]) => setBlogPostStatus(value)}
+                      >
+                        <SelectTrigger className="jupiter-input">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="published">Published</SelectItem>
+                          <SelectItem value="archived">Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="blog-post-featured-image">Featured Image</Label>
+                      <div className="flex gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBlogPostFeaturedImageChange}
+                          ref={blogPostFeaturedImageInputRef}
+                          className="hidden"
+                          id="blog-post-featured-image-upload"
+                        />
+                        <label
+                          htmlFor="blog-post-featured-image-upload"
+                          className="inline-flex items-center px-3 py-2 bg-secondary text-secondary-foreground rounded-md cursor-pointer hover:bg-secondary/80 text-sm flex-1 justify-center"
+                        >
+                          Choose Image
+                        </label>
+                        {blogPostFeaturedImagePreview && (
+                          <Button type="button" onClick={handleClearBlogPostFeaturedImage} className="h-9 px-3 text-sm">
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      {blogPostFeaturedImagePreview && (
+                        <div className="mt-2">
+                          <Image
+                            src={blogPostFeaturedImagePreview || "/placeholder.svg"}
+                            alt="Featured Image Preview"
+                            width={200}
+                            height={120}
+                            className="rounded-md object-cover"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label htmlFor="blog-post-meta-description">Meta Description</Label>
+                      <Button
+                        type="button"
+                        onClick={handleGenerateSeo}
+                        disabled={isGeneratingSeo}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <SparklesIcon className="h-3 w-3 mr-1" />
+                        {isGeneratingSeo ? "Generating..." : "Generate SEO"}
+                      </Button>
+                    </div>
+                    <Textarea
+                      id="blog-post-meta-description"
+                      value={blogPostMetaDescription}
+                      onChange={(e) => setBlogPostMetaDescription(e.target.value)}
+                      placeholder="Brief description for search engines (150-160 characters)..."
+                      className="jupiter-input"
+                      maxLength={160}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {blogPostMetaDescription.length}/160 characters
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="blog-post-keywords">Keywords (comma-separated)</Label>
+                    <Input
+                      id="blog-post-keywords"
+                      value={blogPostKeywords}
+                      onChange={(e) => setBlogPostKeywords(e.target.value)}
+                      placeholder="keyword1, keyword2, keyword3"
+                      className="jupiter-input"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isBlogPostSaving}
+                    className="jupiter-button-dark h-10 px-4 flex items-center gap-2"
+                  >
+                    <SaveIcon className="h-4 w-4" />
+                    {isBlogPostSaving ? "Saving..." : editingBlogPost ? "Update Blog Post" : "Create Blog Post"}
+                  </Button>
+                </form>
+
+                {/* Blog Posts List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Blog Posts ({blogPosts.length})</h3>
+                    <div className="flex gap-2">
+                      <Button onClick={handleNewBlogPost} className="h-8 px-3 text-xs">
+                        <PlusIcon className="h-3 w-3 mr-1" />
+                        New Post
+                      </Button>
+                      <Button onClick={fetchBlogPosts} disabled={isFetchingBlogPosts} className="h-8 px-3 text-xs">
+                        <RefreshCwIcon className="h-3 w-3 mr-1" />
+                        Refresh
+                      </Button>
+                    </div>
+                  </div>
+
+                  {isFetchingBlogPosts ? (
+                    <p className="text-center text-muted-foreground">Loading blog posts...</p>
+                  ) : blogPosts.length === 0 ? (
+                    <p className="text-center text-muted-foreground">No blog posts created yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {blogPosts.map((post) => (
+                        <div key={post.id} className="border rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h4 className="font-medium">{post.title}</h4>
+                                <span
+                                  className={`text-xs px-2 py-1 rounded-md ${
+                                    post.status === "published"
+                                      ? "bg-green-100 text-green-800"
+                                      : post.status === "draft"
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : "bg-gray-100 text-gray-800"
+                                  }`}
+                                >
+                                  {post.status}
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                Slug: /{post.slug} • Created: {new Date(post.created_at).toLocaleDateString()}
+                                {post.updated_at && post.updated_at !== post.created_at && (
+                                  <> • Updated: {new Date(post.updated_at).toLocaleDateString()}</>
+                                )}
+                              </p>
+                              {post.meta_description && (
+                                <p className="text-sm text-muted-foreground">{post.meta_description}</p>
+                              )}
+                              {post.keywords && post.keywords.length > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Keywords: {post.keywords.join(", ")}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              {post.status === "published" && (
+                                <Button
+                                  onClick={() => window.open(`/blog/${post.slug}`, "_blank")}
+                                  className="h-8 w-8 p-0"
+                                  title="View Post"
+                                >
+                                  <EyeIcon className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                onClick={() => handleEditBlogPost(post)}
+                                className="h-8 w-8 p-0"
+                                title="Edit Post"
+                              >
+                                <EditIcon className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                onClick={() => handleDeleteBlogPost(post.id)}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                                title="Delete Post"
+                              >
+                                <Trash2Icon className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </main>
   )

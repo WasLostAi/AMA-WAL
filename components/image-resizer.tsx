@@ -121,3 +121,7 @@ export function ImageResizerDemo() {
     </div>
   )
 }
+
+// Named export for ImageResizer
+export const ImageResizer = ImageResizerDemo
+export default ImageResizerDemo

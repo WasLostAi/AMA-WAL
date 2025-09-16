@@ -76,6 +76,18 @@ export async function getBlogPosts(): Promise<{ data: BlogPost[] | null; message
   }
 }
 
+export async function getPublishedBlogPosts(): Promise<{ data: BlogPost[] | null; message: string }> {
+  try {
+    // Simulate database fetch for published posts only
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const publishedPosts = mockBlogPosts.filter((post) => post.status === "published")
+    return { data: publishedPosts, message: "Published blog posts fetched successfully." }
+  } catch (error) {
+    console.error("Database query error:", error)
+    return { data: null, message: "Failed to fetch published blog posts." }
+  }
+}
+
 export async function getBlogPostBySlug(slug: string): Promise<{ data: BlogPost | null; message: string }> {
   try {
     // Simulate database fetch

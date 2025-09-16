@@ -10,7 +10,7 @@ interface SocialPost {
   type: SocialPostType
   headline: string
   content: string
-  createdAt?: string // Optional, if you want to display it
+  createdAt?: string
 }
 
 interface SocialPostScrollerProps {
@@ -29,10 +29,11 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
       setIsLoading(true)
       setError(null)
       try {
-        // Fetch from the single AI-powered route
+        console.log(`Fetching ${feedType} posts...`)
+
         const response = await fetch(`/api/generate-social-posts?type=${feedType}`)
+
         if (!response.ok) {
-          // Check content type before attempting to parse as JSON
           const contentType = response.headers.get("Content-Type")
           let errorMessage = `Failed to generate ${feedType} posts. Status: ${response.status}`
 
@@ -42,36 +43,50 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
               errorMessage = errorResponse.error || errorResponse.suggestion || errorMessage
             } catch (jsonParseError) {
               console.error("Failed to parse JSON error response:", jsonParseError)
-              errorMessage = `Server returned non-JSON error: ${await response.text()}`
+              const textResponse = await response.text()
+              errorMessage = `Server error: ${textResponse.substring(0, 100)}...`
             }
           } else {
-            errorMessage = `Server returned non-JSON error: ${await response.text()}`
+            try {
+              const textResponse = await response.text()
+              errorMessage = `Server returned non-JSON error: ${textResponse.substring(0, 100)}...`
+            } catch (textError) {
+              errorMessage = `Server error (status ${response.status})`
+            }
           }
           throw new Error(errorMessage)
         }
+
         const data = await response.json()
+
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid response format: expected array of posts")
+        }
+
+        console.log(`Successfully fetched ${data.length} ${feedType} posts`)
         setPosts(data)
-        setCurrentPostIndex(0) // Reset index when feed type changes
+        setCurrentPostIndex(0)
       } catch (err: any) {
         console.error(`Error fetching ${feedType} posts:`, err)
         setError(err.message || "Failed to load posts.")
-        setPosts([]) // Clear posts on error
+        setPosts([])
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchPosts()
+  }, [feedType]) // Remove posts.length dependency to avoid infinite loops
 
-    // Set up interval for scrolling
+  useEffect(() => {
+    if (posts.length === 0) return
+
     const interval = setInterval(() => {
-      if (posts.length > 0) {
-        setCurrentPostIndex((prevIndex) => (prevIndex + 1) % posts.length)
-      }
+      setCurrentPostIndex((prevIndex) => (prevIndex + 1) % posts.length)
     }, 5000) // Change post every 5 seconds
 
     return () => clearInterval(interval)
-  }, [feedType, posts.length]) // Re-fetch and reset interval when feedType changes or posts length changes
+  }, [posts.length]) // Separate effect for the interval
 
   if (isLoading) {
     return (
@@ -84,7 +99,7 @@ export function SocialPostScroller({ feedType, onToggleFeed }: SocialPostScrolle
   if (error) {
     return (
       <div className="neumorphic-base p-2 flex items-center gap-3 flex-1 mx-4 h-12 overflow-hidden">
-        <span className="text-red-500">Error: {error}</span>
+        <span className="text-red-500 text-sm">Error: {error}</span>
       </div>
     )
   }

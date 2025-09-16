@@ -59,7 +59,7 @@ async function updateMetadataBlob(metadata: AllFileMetadata) {
   await put(METADATA_BLOB_PATH, JSON.stringify(metadata, null, 2), {
     access: "public",
     contentType: "application/json",
-    allowOverwrite: true,
+    addRandomSuffix: false,
   })
 }
 
@@ -182,12 +182,11 @@ export async function uploadFileWithTag(prevState: any, formData: FormData) {
 
   try {
     // Convert File to Buffer for processing
-    const fileBuffer = Buffer.from(await file.arrayBuffer()) // Corrected typo here
+    const fileBuffer = Buffer.from(await file.arrayBuffer())
 
     // Upload the file to Vercel Blob
     const filePath = `uploaded-files/${Date.now()}-${file.name}` // Unique path
     const blob = await put(filePath, fileBuffer, {
-      // Use fileBuffer here
       access: "public",
       contentType: file.type,
       addRandomSuffix: false, // We're adding timestamp for uniqueness

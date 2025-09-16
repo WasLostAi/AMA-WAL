@@ -2,7 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase"
 import { revalidatePath } from "next/cache"
-import { put } from "@vercel/blob" // Import put for image uploads
+import { put } from "@vercel/blob"
 
 interface AgentProfileData {
   personal: {
@@ -18,19 +18,19 @@ interface AgentProfileData {
       phone: string
     }
     personalStatement: string
-    avatarUrl?: string // New field for avatar URL
+    avatarUrl?: string
   }
   professional: any
   company: {
     name: string
-    config_data?: any // Add this new field
+    config_data?: any
   }
   chatbotInstructions: {
     role: string
     style: string
     approach: string
     limitations: string
-    initialGreeting?: string // New field for initial greeting
+    initialGreeting?: string
   }
 }
 
@@ -44,16 +44,53 @@ interface TrainingQA {
 
 export async function getAgentProfileData(): Promise<{ data: AgentProfileData | null; message?: string }> {
   try {
-    const { data, error } = await supabaseAdmin.from("agent_profile").select("profile_data").maybeSingle()
+    // First check if the table exists and has the correct structure
+    const { data, error } = await supabaseAdmin.from("agent_profile").select("profile_data").limit(1).maybeSingle()
 
     if (error) {
-      console.error("Error fetching agent profile:", error)
-      return { data: null, message: `Failed to fetch agent profile: ${error.message}` }
+      console.error("Supabase error details:", {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      })
+
+      // Handle specific error cases
+      if (error.code === "42P01") {
+        return {
+          data: null,
+          message: "Database table 'agent_profile' not found. Please run the seed script first.",
+        }
+      }
+
+      if (error.code === "42703") {
+        return {
+          data: null,
+          message: "Database column 'profile_data' not found. Please check your database schema.",
+        }
+      }
+
+      return {
+        data: null,
+        message: `Database error: ${error.message}. Code: ${error.code || "unknown"}`,
+      }
     }
 
     if (!data) {
-      console.warn("No agent profile found in database. Please run the seed script.")
-      return { data: null, message: "No agent profile found. Please run the seed script." }
+      console.warn("No agent profile found in database")
+      return {
+        data: null,
+        message: "No agent profile found. Please run the seed script to create initial data.",
+      }
+    }
+
+    // Validate that profile_data exists and is an object
+    if (!data.profile_data || typeof data.profile_data !== "object") {
+      console.error("Invalid profile_data format:", data.profile_data)
+      return {
+        data: null,
+        message: "Invalid profile data format in database. Please re-seed the database.",
+      }
     }
 
     return { data: data.profile_data as AgentProfileData }
@@ -75,9 +112,9 @@ export async function updateAgentProfileData(
   const agentStyle = formData.get("agentStyle") as string
   const agentApproach = formData.get("agentApproach") as string
   const agentLimitations = formData.get("agentLimitations") as string
-  const initialGreeting = formData.get("initialGreeting") as string // New field
-  const configDataJson = formData.get("configDataJson") as string // New field for config data
-  const avatarUrl = formData.get("avatarUrl") as string // New field
+  const initialGreeting = formData.get("initialGreeting") as string
+  const configDataJson = formData.get("configDataJson") as string
+  const avatarUrl = formData.get("avatarUrl") as string
 
   if (!profileJsonString) {
     return { success: false, message: "No profile JSON provided." }
@@ -86,29 +123,41 @@ export async function updateAgentProfileData(
   try {
     const baseProfile: AgentProfileData = JSON.parse(profileJsonString)
 
+    // Parse config data safely
+    let configData = {}
+    if (configDataJson) {
+      try {
+        configData = JSON.parse(configDataJson)
+      } catch (configError) {
+        console.error("Error parsing config data JSON:", configError)
+        return { success: false, message: "Invalid config data JSON format." }
+      }
+    }
+
     // Update chatbotInstructions and personal.avatarUrl
     const fullProfileData: AgentProfileData = {
       ...baseProfile,
       personal: {
         ...baseProfile.personal,
-        avatarUrl: avatarUrl || baseProfile.personal?.avatarUrl, // Use new URL or keep existing
+        avatarUrl: avatarUrl || baseProfile.personal?.avatarUrl,
       },
       company: {
         ...baseProfile.company,
-        ...(configDataJson ? JSON.parse(configDataJson) : {}), // Merge parsed config data
+        config_data: configData,
       },
       chatbotInstructions: {
         role: agentRole,
         style: agentStyle,
         approach: agentApproach,
         limitations: agentLimitations,
-        initialGreeting: initialGreeting, // Set new initial greeting
+        initialGreeting: initialGreeting,
       },
     }
 
     const { data: existingProfile, error: fetchError } = await supabaseAdmin
       .from("agent_profile")
       .select("id")
+      .limit(1)
       .maybeSingle()
 
     if (fetchError) {
@@ -120,7 +169,10 @@ export async function updateAgentProfileData(
     if (existingProfile) {
       const { error } = await supabaseAdmin
         .from("agent_profile")
-        .update({ profile_data: fullProfileData, updated_at: new Date().toISOString() })
+        .update({
+          profile_data: fullProfileData,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", existingProfile.id)
       updateError = error
     } else {
@@ -137,7 +189,7 @@ export async function updateAgentProfileData(
     revalidatePath("/api/generate-social-posts")
     revalidatePath("/admin/agent-manager")
     revalidatePath("/admin")
-    revalidatePath("/") // Revalidate home page to pick up new intro/avatar
+    revalidatePath("/")
 
     return { success: true, message: "Agent profile updated successfully!" }
   } catch (error) {
@@ -149,7 +201,6 @@ export async function updateAgentProfileData(
   }
 }
 
-// New action for uploading agent avatar
 export async function uploadAgentAvatar(
   prevState: any,
   formData: FormData,
@@ -188,7 +239,7 @@ export async function uploadAgentAvatar(
   }
 }
 
-// --- Training Q&A Actions (unchanged) ---
+// --- Training Q&A Actions ---
 
 export async function getTrainingQAs(): Promise<{ data: TrainingQA[] | null; message?: string }> {
   try {

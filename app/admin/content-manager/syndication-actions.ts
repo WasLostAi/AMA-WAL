@@ -3,7 +3,6 @@
 import { supabaseAdmin } from "@/lib/supabase"
 import { revalidatePath } from "next/cache"
 import { generateText } from "ai"
-// Import the 'openai' client directly for both text generation and embeddings
 import { openai } from "@ai-sdk/openai"
 
 interface AgentProfileData {
@@ -71,7 +70,6 @@ async function getRagContext(query: string): Promise<string> {
     return ""
   }
 
-  // Use the imported 'openai' client directly for embeddings
   try {
     const { embedding } = await openai.embeddings.create({
       model: "text-embedding-3-small",
@@ -160,7 +158,7 @@ export async function generateAndSyndicateContent(
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0.7,
-      max_tokens: 1000,
+      maxTokens: 1000,
     })
 
     const jsonStartIndex = aiResponseText.indexOf("{")

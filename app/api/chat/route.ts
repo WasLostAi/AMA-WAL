@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { createOpenAI, openai as textGenOpenai } from "@ai-sdk/openai"
+import { openai } from "@ai-sdk/openai"
 import { generateText } from "ai"
 import { supabaseAdmin } from "@/lib/supabase"
 
@@ -13,13 +13,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Server configuration error: OpenAI API key is missing." }, { status: 500 })
     }
 
-    // Initialize openaiEmbeddings here, after the API key check
-    const openaiEmbeddings = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-
     // --- RAG: Retrieve relevant documents from Supabase ---
     let retrievedContext = ""
     try {
-      const { embedding } = await openaiEmbeddings.embeddings.create({
+      const { embedding } = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: message,
       })
@@ -118,29 +115,29 @@ If asked about advanced functions, or $WSLST Tokenomics, say they are coming soo
 
 Here is detailed information about Michael and WasLost.Ai:
 --- Michael's Personal Information ---
-Name: ${chatbotData.personal.name} (${chatbotData.personal.nickname})
-Age: ${chatbotData.personal.age}
-Location: ${chatbotData.personal.location}
-Background: ${chatbotData.personal.background}
-Education: ${chatbotData.personal.education}
-Mission: ${chatbotData.personal.mission}
-Contact: Email: ${chatbotData.personal.contact.email}, Phone: ${chatbotData.personal.contact.phone}
-Personal Statement: ${chatbotData.personal.personalStatement}
+Name: ${chatbotData.personal?.name || "Michael P. Robinson"} (${chatbotData.personal?.nickname || "Mike"})
+Age: ${chatbotData.personal?.age || "Not specified"}
+Location: ${chatbotData.personal?.location || "Not specified"}
+Background: ${chatbotData.personal?.background || "AI and Web3 developer"}
+Education: ${chatbotData.personal?.education || "Not specified"}
+Mission: ${chatbotData.personal?.mission || "empower through AI"}
+Contact: Email: ${chatbotData.personal?.contact?.email || "Not specified"}, Phone: ${chatbotData.personal?.contact?.phone || "Not specified"}
+Personal Statement: ${chatbotData.personal?.personalStatement || "Not specified"}
 
 --- Michael's Professional Information ---
-Current Role: ${chatbotData.professional.currentRole}
-Responsibilities: ${chatbotData.professional.responsibilities.join(", ")}
-Previous Experience: ${chatbotData.professional.previousExperience.map((exp: string) => `- ${exp}`).join("\n")}
-Skills: ${chatbotData.professional.skills.join("; ")}
-Key Achievements: ${chatbotData.professional.keyAchievements.map((ach: string) => `- ${ach}`).join("\n")}
+Current Role: ${chatbotData.professional?.currentRole || "AI Developer"}
+Responsibilities: ${chatbotData.professional?.responsibilities?.join(", ") || "AI development, Web3 integration"}
+Previous Experience: ${chatbotData.professional?.previousExperience?.map((exp: string) => `- ${exp}`).join("\n") || "- Extensive AI development experience"}
+Skills: ${chatbotData.professional?.skills?.join("; ") || "AI, Web3, Blockchain"}
+Key Achievements: ${chatbotData.professional?.keyAchievements?.map((ach: string) => `- ${ach}`).join("\n") || "- Building WasLost.Ai platform"}
 
 --- WasLost LLC & WasLost.Ai Company Information ---
-Company Name: ${chatbotData.company.name}
-Product: ${chatbotData.company.product}
-Description: ${chatbotData.company.description}
+Company Name: ${chatbotData.company?.name || "WasLost LLC"}
+Product: ${chatbotData.company?.product || "WasLost.Ai"}
+Description: ${chatbotData.company?.description || "AI agent ecosystem"}
 Projects:
-${chatbotData.company.projects.map((project: { name: string; details: string[] }) => `  - ${project.name}: ${project.details.join(", ")}`).join("\n")}
-Tokenomics Status: ${chatbotData.company.tokenomics}
+${chatbotData.company?.projects?.map((project: { name: string; details: string[] }) => `  - ${project.name}: ${project.details.join(", ")}`).join("\n") || "  - WasLost.Ai: AI agent platform"}
+Tokenomics Status: ${chatbotData.company?.tokenomics || "Coming soon"}
 
 --- Additional Training Data (Q&A pairs for specific queries) ---
 ${trainingData ? trainingData.map((data: { question: string; answer: string }) => `Q: ${data.question}\nA: ${data.answer}`).join("\n\n") : "No additional training data available."}
@@ -159,7 +156,7 @@ ${
     }))
 
     const { text } = await generateText({
-      model: textGenOpenai("gpt-4o"),
+      model: openai("gpt-4o"),
       system: systemPrompt,
       messages: formattedHistory,
     })
