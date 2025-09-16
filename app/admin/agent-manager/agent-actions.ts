@@ -40,65 +40,110 @@ interface TrainingQA {
   answer: string
 }
 
+// Default fallback data
+const DEFAULT_AGENT_DATA: AgentProfileData = {
+  personal: {
+    name: "Michael P. Robinson",
+    nickname: "Mike",
+    age: 35,
+    location: "United States",
+    background: "AI Developer and Entrepreneur",
+    education: "Computer Science",
+    mission: "To empower individuals and businesses through AI technology",
+    contact: {
+      email: "mike@waslost.ai",
+      phone: "+1-555-0123",
+    },
+    personalStatement: "Passionate about creating AI solutions that make a real difference.",
+    avatarUrl: "/placeholder-user.jpg",
+  },
+  professional: {
+    currentRole: "AI Developer & Founder",
+    skills: ["AI Development", "Web3", "Trading Automation", "Full-Stack Development"],
+    keyAchievements: ["Built WasLost.Ai platform", "Developed AI trading systems", "Created decentralized AI agents"],
+  },
+  company: {
+    name: "WasLost LLC",
+    config_data: {
+      content_guidelines: {
+        brand_voice: "professional, innovative, approachable",
+        tone: "informative, confident, helpful",
+        keywords_focus: ["AI", "Web3", "Decentralized AI", "Trading", "Automation"],
+        audience: "tech enthusiasts, developers, traders",
+      },
+    },
+  },
+  chatbotInstructions: {
+    role: "AI Assistant and Developer Advocate",
+    style: "Professional yet approachable, knowledgeable about AI and Web3",
+    approach: "Provide helpful, accurate information while being engaging",
+    limitations: "Cannot provide financial advice or make trades",
+    initialGreeting: "Hello! I'm Mike's AI assistant. How can I help you today?",
+  },
+}
+
 // --- Agent Profile Actions ---
 
 export async function getAgentProfileData(): Promise<{ data: AgentProfileData | null; message?: string }> {
   try {
-    // First check if the table exists and has the correct structure
+    // Test the connection first
+    const { data: testData, error: testError } = await supabaseAdmin
+      .from("agent_profile")
+      .select("count", { count: "exact", head: true })
+
+    if (testError) {
+      console.error("Supabase connection test failed:", testError)
+
+      if (testError.code === "42P01") {
+        console.warn("Agent profile table does not exist. Using default data.")
+        return {
+          data: DEFAULT_AGENT_DATA,
+          message: "Using default agent data. Database table not found.",
+        }
+      }
+
+      console.warn("Database connection failed. Using default data.")
+      return {
+        data: DEFAULT_AGENT_DATA,
+        message: "Using default agent data. Database connection failed.",
+      }
+    }
+
+    // Now try to fetch the actual data
     const { data, error } = await supabaseAdmin.from("agent_profile").select("profile_data").limit(1).maybeSingle()
 
     if (error) {
-      console.error("Supabase error details:", {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      })
-
-      // Handle specific error cases
-      if (error.code === "42P01") {
-        return {
-          data: null,
-          message: "Database table 'agent_profile' not found. Please run the seed script first.",
-        }
-      }
-
-      if (error.code === "42703") {
-        return {
-          data: null,
-          message: "Database column 'profile_data' not found. Please check your database schema.",
-        }
-      }
-
+      console.error("Error fetching agent profile:", error)
       return {
-        data: null,
-        message: `Database error: ${error.message}. Code: ${error.code || "unknown"}`,
+        data: DEFAULT_AGENT_DATA,
+        message: "Using default agent data. Database query failed.",
       }
     }
 
-    if (!data) {
-      console.warn("No agent profile found in database")
+    if (!data || !data.profile_data) {
+      console.warn("No agent profile found in database. Using default data.")
       return {
-        data: null,
-        message: "No agent profile found. Please run the seed script to create initial data.",
+        data: DEFAULT_AGENT_DATA,
+        message: "Using default agent data. No profile found in database.",
       }
     }
 
-    // Validate that profile_data exists and is an object
-    if (!data.profile_data || typeof data.profile_data !== "object") {
-      console.error("Invalid profile_data format:", data.profile_data)
+    // Validate the profile data structure
+    const profileData = data.profile_data as AgentProfileData
+    if (!profileData.personal || !profileData.company || !profileData.chatbotInstructions) {
+      console.warn("Invalid profile data structure. Using default data.")
       return {
-        data: null,
-        message: "Invalid profile data format in database. Please re-seed the database.",
+        data: DEFAULT_AGENT_DATA,
+        message: "Using default agent data. Invalid profile structure.",
       }
     }
 
-    return { data: data.profile_data as AgentProfileData }
+    return { data: profileData }
   } catch (error) {
     console.error("Unexpected error in getAgentProfileData:", error)
     return {
-      data: null,
-      message: `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`,
+      data: DEFAULT_AGENT_DATA,
+      message: "Using default agent data. Unexpected error occurred.",
     }
   }
 }
@@ -146,11 +191,11 @@ export async function updateAgentProfileData(
         config_data: configData,
       },
       chatbotInstructions: {
-        role: agentRole,
-        style: agentStyle,
-        approach: agentApproach,
-        limitations: agentLimitations,
-        initialGreeting: initialGreeting,
+        role: agentRole || baseProfile.chatbotInstructions?.role || "",
+        style: agentStyle || baseProfile.chatbotInstructions?.style || "",
+        approach: agentApproach || baseProfile.chatbotInstructions?.approach || "",
+        limitations: agentLimitations || baseProfile.chatbotInstructions?.limitations || "",
+        initialGreeting: initialGreeting || baseProfile.chatbotInstructions?.initialGreeting || "",
       },
     }
 
@@ -160,7 +205,7 @@ export async function updateAgentProfileData(
       .limit(1)
       .maybeSingle()
 
-    if (fetchError) {
+    if (fetchError && fetchError.code !== "42P01") {
       console.error("Error checking for existing agent profile:", fetchError)
       return { success: false, message: `Failed to check profile existence: ${fetchError.message}` }
     }
@@ -250,14 +295,14 @@ export async function getTrainingQAs(): Promise<{ data: TrainingQA[] | null; mes
 
     if (error) {
       console.error("Error fetching training Q&As:", error)
-      return { data: null, message: `Failed to fetch training Q&As: ${error.message}` }
+      return { data: [], message: `Failed to fetch training Q&As: ${error.message}` }
     }
 
     return { data: data as TrainingQA[] }
   } catch (error) {
     console.error("Unexpected error in getTrainingQAs:", error)
     return {
-      data: null,
+      data: [],
       message: `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`,
     }
   }
