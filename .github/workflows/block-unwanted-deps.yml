@@ -1,0 +1,92 @@
+name: Block Unwanted Dependencies
+
+on:
+  pull_request:
+    paths:
+      - 'package*.json'
+      - 'yarn.lock'
+      - 'pnpm-lock.yaml'
+
+jobs:
+  check-dependencies:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check for unwanted dependencies
+        run: |
+          echo "Checking for unwanted npm dependencies and versions..."
+          
+          # List of unwanted dependencies with exact versions
+          # Each dependency is checked in two formats: 
+          # - package.json format: "name": "version"
+          # - lock file format: name@version
+          UNWANTED_DEPS=(
+            '"chalk": "5.6.1"'
+            'chalk@5.6.1'
+            '"debug": "4.4.2"'
+            'debug@4.4.2'
+            '"ansi-styles": "6.2.2"'
+            'ansi-styles@6.2.2'
+            '"supports-color": "10.2.1"'
+            'supports-color@10.2.1'
+            '"strip-ansi": "7.1.1"'
+            'strip-ansi@7.1.1'
+            '"ansi-regex": "6.2.1"'
+            'ansi-regex@6.2.1'
+            '"wrap-ansi": "9.0.1"'
+            'wrap-ansi@9.0.1'
+            '"color-convert": "3.1.1"'
+            'color-convert@3.1.1'
+            '"color-name": "2.0.1"'
+            'color-name@2.0.1'
+            '"is-arrayish": "0.3.3"'
+            'is-arrayish@0.3.3'
+            '"slice-ansi": "7.1.1"'
+            'slice-ansi@7.1.1'
+            '"color": "5.0.1"'
+            'color@5.0.1'
+            '"color-string": "2.1.1"'
+            'color-string@2.1.1'
+            '"simple-swizzle": "0.2.3"'
+            'simple-swizzle@0.2.3'
+            '"supports-hyperlinks": "4.1.1"'
+            'supports-hyperlinks@4.1.1'
+            '"has-ansi": "6.0.1"'
+            'has-ansi@6.0.1'
+            '"chalk-template": "1.1.1"'
+            'chalk-template@1.1.1'
+            '"backslash": "0.2.1"'
+            'backslash@0.2.1'
+          )
+          
+          # Check all package*.json, yarn.lock, and pnpm-lock.yaml files
+          FILES_TO_CHECK=$(find . -name "package*.json" -o -name "yarn.lock" -o -name "pnpm-lock.yaml" | grep -v node_modules | grep -v .git)
+          
+          echo "Files to check: $FILES_TO_CHECK"
+          
+          FOUND_UNWANTED=false
+          
+          for file in $FILES_TO_CHECK; do
+            echo "Checking file: $file"
+            
+            for dep in "${UNWANTED_DEPS[@]}"; do
+              if grep -q "$dep" "$file" 2>/dev/null; then
+                echo "❌ FOUND UNWANTED DEPENDENCY: $dep in $file"
+                echo "Matching lines:"
+                grep -n "$dep" "$file"
+                echo ""
+                FOUND_UNWANTED=true
+              fi
+            done
+          done
+          
+          if [ "$FOUND_UNWANTED" = true ]; then
+            echo "❌ WORKFLOW FAILED: Unwanted dependencies found!"
+            echo "Please remove the unwanted dependencies listed above before proceeding."
+            exit 1
+          else
+            echo "✅ No unwanted dependencies found."
+          fi
